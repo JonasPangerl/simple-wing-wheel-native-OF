@@ -135,6 +135,22 @@ These are real and documented, not things to silently "fix":
 - `snappyHexMesh` cannot do **per-STL-region distance refinement**, which
   HELYX did for the endplate bottom edge and the wheel plinth. Two explicit
   `searchableBox` zones stand in for it. See `docs/07_case_reference.md`.
+  **Those two boxes are positioned for the baseline geometry and do not
+  follow the parameters** — re-check them before extending the sweep to very
+  different ride heights or wheel widths.
+
+- **Three patches get fewer layers than the rest by design**: `wing-TE` and
+  `wing-endplate_TE` (2 layers from 0.05 mm) and `wheel-plinth` (2 from
+  0.1 mm). With the standard stack they got *zero*: 4 layers from 0.14 mm
+  total 0.87 mm, and a blunt 0.5 mm trailing edge has no room for it. Read
+  the per-patch layer table at the end of `log.snappyHexMesh` after any
+  change here. Ordering matters: `layerParameters` iterates the `layers`
+  entries and overwrites as it goes, so the **last matching entry wins**.
+
+- **A refinement box at L7 costs 8× what it does at L6 for the same volume.**
+  Check `Cells per refinement level` in `log.snappyHexMesh` after touching
+  the boxes. An oversized `L7-contact-patch` once accounted for 35 % of the
+  whole mesh.
 - The interaction classification in `build_matrix.py` puts **280 of 420**
   cases in `outboard_strong`. That is the existing threshold choice, carried
   over unchanged.

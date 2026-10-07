@@ -133,12 +133,22 @@ geometry
         max     (-0.048  0.112  0.016);
     }
 
-    // Wheel contact patch: HELYX refined to L7 within 5 mm of the plinth.
+    // Wheel contact patch: HELYX refined to L7 within 5 mm of the plinth,
+    // i.e. a thin shell following the surface. A box fills that volume
+    // solid, so its size matters a great deal at L7 (0.146 mm cells).
+    //
+    // Sized to the geometric contact zone, not to the wheel: with
+    // R = 43.875 mm the wheel surface is below z = 4 mm only for
+    // |x| <= sqrt(R^2 - (R-4)^2) = 18.4 mm. The first version of this box
+    // was 100 x 52 x 8 mm and produced 10.07 M cells at L7 - 35 % of the
+    // whole mesh, and the single reason the mesh came out at 28.5 M cells
+    // instead of the 18.7 M the HELYX setup produced. This version costs
+    // about 2.4 M cells.
     L7-contact-patch
     {
         type    searchableBox;
-        min     (-0.050  0.070  0.000);
-        max     ( 0.050  0.122  0.008);
+        min     (-0.018  0.070  0.000);
+        max     ( 0.018  0.122  0.004);
     }
 }
 
@@ -305,6 +315,9 @@ addLayersControls
     firstLayerThickness 0.00014;
     minThickness        0.00004;
 
+    // Per-patch layer specification. Note the ordering: snappyHexMesh takes
+    // the LAST matching entry, so the specific patches come after the
+    // regexes they override.
     layers
     {
         "wing-.*"
@@ -315,6 +328,31 @@ addLayersControls
         "wheel-.*"
         {
             nSurfaceLayers 4;
+        }
+
+        // --- thin features: fewer, thinner layers -----------------------
+        // 4 layers from 0.14 mm with ratio 1.3 total 0.87 mm. These three
+        // patches cannot take that and got ZERO layers on the first run:
+        //
+        //   patch                faces   target   achieved
+        //   wing-TE                752        4          0
+        //   wing-endplate_TE       218        4          0
+        //   wheel-plinth          2740        4          0
+        //
+        // The trailing edges are blunt and only 0.5 mm thick, so there is at
+        // most 0.25 mm of room per side. 2 layers from 0.05 mm give 0.115 mm.
+        "wing-(TE|endplate_TE)"
+        {
+            nSurfaceLayers      2;
+            firstLayerThickness 0.00005;
+        }
+
+        // The plinth is the collar cut by the ground plane, so its layers
+        // fight the ground's. Thinner and fewer gives them a chance.
+        wheel-plinth
+        {
+            nSurfaceLayers      2;
+            firstLayerThickness 0.0001;
         }
 
         // Ground plane: coarser first layer, fewer layers. Carried over from

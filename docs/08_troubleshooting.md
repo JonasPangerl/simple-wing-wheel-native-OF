@@ -61,6 +61,26 @@ the region outside the fluid.
 ranks. Lower `--jobs` in a campaign, or raise `NP` so the mesh is split more
 finely — but note that each rank also carries the full triSurface.
 
+**A patch got zero layers**
+→ Read the per-patch table at the end of `log.snappyHexMesh` (`patch / faces
+/ target / achieved / thickness`). If `achieved` is 0 the requested stack
+does not fit: 4 layers from 0.14 mm with ratio 1.3 total 0.87 mm, and a blunt
+0.5 mm trailing edge has at most 0.25 mm per side. Give that patch its own
+entry with fewer, thinner layers — `wing-TE`, `wing-endplate_TE` and
+`wheel-plinth` already have one. Put specific entries **after** the regexes
+they override; the last matching entry wins.
+
+**`Layer specification for X does not match any patch`**
+→ A key in `addLayersControls/layers` matches nothing. Check it against the
+patch names snappyHexMesh actually created (the `patchInfo/name` entries in
+`snappyHexMeshDict`), not against the STL solid names.
+
+**The mesh is far bigger than expected**
+→ Look at `Cells per refinement level` at the end of `log.snappyHexMesh`.
+A `searchableBox` fills its volume solid, and each level costs 8× the
+previous one, so an oversized box at L6 or L7 dominates everything else.
+This happened here: a 100 × 52 × 8 mm box at L7 was 35 % of the mesh.
+
 **Layer coverage much below 100 %**
 → Check `log.snappyHexMesh` for which patches lost layers, and colour the
 reconstructed mesh by `nSurfaceLayers`. Usual causes, in order:

@@ -5,8 +5,12 @@ cd RANS_Simulations/S1.42_h0.13_AOA8_W0.63
 ./Allmesh
 ```
 
-Baseline result: **≈ 19 M cells**, 4 prism layers on wing and wheel, 3 on the
-ground. On 20 cores expect roughly 1–2 hours and ~30 GB of RAM.
+Baseline result: **≈ 20 M cells**, 4 prism layers on wing and wheel, 3 on the
+ground. Measured on 20 ranks of a 24-core workstation: **under an hour**, peak
+memory around 60 GB.
+
+Layer addition is the expensive part — about 60 % of the total. See
+[§3.7](#37-measured-on-the-baseline-case) for the full breakdown.
 
 ---
 
@@ -210,7 +214,80 @@ field to colour by — the fastest way to find where layers were dropped.
 
 ---
 
-## 3.7 Making it cheaper while you iterate
+## 3.7 Measured on the baseline case
+
+`S1.42_h0.13_AOA8_W0.63`, OpenFOAM v2606, 20 MPI ranks on one 24-core node.
+
+### Where the time goes
+
+| stage | time |
+|---|---|
+| scale STLs, `surfaceCheck`, `surfaceFeatureExtract`, `blockMesh`, `decomposePar` | ~15 s |
+| refinement (feature, surface, shell) | ~10 min |
+| snapping | ~10 min |
+| **layer addition** | **~34 min** |
+| `checkMesh` | ~1 min |
+
+Layer addition dominates. If you are iterating on refinement only, set
+`addLayers false` in `snappyHexMeshDict` and you get answers three times
+faster.
+
+### Cells per refinement level
+
+Printed by snappyHexMesh at the end as `Cells per refinement level`. Worth
+checking after any change to the boxes — it is the fastest way to see where
+the cells actually went:
+
+```
+L0  0.11 M     L4  4.26 M
+L1  0.02 M     L5 11.74 M
+L2  0.52 M     L6  1.24 M
+L3  0.59 M     L7  2.38 M
+```
+
+### Two lessons from getting this wrong
+
+**A box at L7 is expensive, so size it to the geometry.** The first version of
+`L7-contact-patch` was 100 × 52 × 8 mm and produced **10.07 M cells — 35 % of
+the entire mesh**, pushing it to 28.5 M cells against the 18.7 M that the
+HELYX setup produced. HELYX used a 5 mm distance *shell* around the plinth;
+a box fills that volume solid. Sizing it to the actual contact zone
+(|x| ≤ 18 mm, where the wheel surface is below z = 4 mm) brings it to 2.4 M.
+
+Each level costs 8× the previous one for the same volume, so this arithmetic
+is worth doing before meshing rather than after.
+
+**Thin features cannot take the standard layer stack.** The per-patch layer
+table at the end of `log.snappyHexMesh` is the thing to read:
+
+```
+patch                faces    target   achieved   thickness
+wing-suction         31398         4       3.88        95 %
+wing-TE                752         4          0         0 %
+wing-endplate_TE       218         4          0         0 %
+wheel-plinth          2740         4          0         0 %
+wheel-tread          93270         4       3.17      56 %
+ground              372151         3       2.95      86 %
+```
+
+Four layers from 0.14 mm with ratio 1.3 total 0.87 mm. A blunt trailing edge
+0.5 mm thick has at most 0.25 mm of room per side, so it got nothing at all.
+Those three patches now have their own entries: 2 layers from 0.05 mm for the
+trailing edges, 2 from 0.1 mm for the plinth.
+
+> Ordering matters in `addLayersControls/layers`. `layerParameters` iterates
+> the entries in order and overwrites as it goes, so **the last matching
+> entry wins** — regex or literal alike. Specific patches must come after the
+> regexes they override.
+
+The wheel tread reaching only 56 % is a different thing: it is tessellated at
+1.53 mm against 0.293 mm cells (see
+[02_geometry.md](02_geometry.md#25-known-geometry-issues)), so the layers get
+squeezed by the facets.
+
+---
+
+## 3.8 Making it cheaper while you iterate
 
 A 19 M cell mesh is a slow way to find a typo. Drop every surface level by
 one and the boxes with it:
