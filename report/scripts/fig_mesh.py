@@ -19,6 +19,11 @@ from paraview.simple import *  # noqa: F401,F403,E402
 Y_WHEEL = WHEEL["y"]
 X_AXIS = 0.0
 
+# Taken from the STL, not estimated: region centroids of the baseline wing.
+WING_TE = (-0.063223, 0.024329)        # (x, z) of the blunt trailing edge
+WING_LE_X = -0.136397
+WING_SECTION_Z = (0.009750, 0.024580)
+
 
 def mesh_slice(reader, origin, normal, name):
     s = Slice(registrationName=name, Input=reader)
@@ -38,7 +43,11 @@ def show_mesh(src, view, fill=(0.88, 0.90, 0.93), edge=(0.10, 0.12, 0.15),
     d.EdgeColor = list(edge)
     d.LineWidth = lw
     d.Specular = 0.0
-    ColorBy(d, None)
+    # Disable scalar colouring. ColorBy(d, None) is rejected by ParaView
+    # 5.13 ("invalid association string NONE"); setting ColorArrayName
+    # directly is the way that works.
+    d.ColorArrayName = [None, '']
+    d.SetScalarBarVisibility(view, False)
     return d
 
 
@@ -92,23 +101,32 @@ def main():
     # Top of the tread, where layers should be cleanest
     hide_all(v)
     show_mesh(sy, v, lw=1.1)
-    look_at(v, (0.0, Y_WHEEL, WHEEL["z"] + WHEEL["r"]), (0, 1, 0), (0, 0, 1),
-            0.0045)
-    text_label(v, "wheel tread, top.  4 layers requested, first 0.14 mm")
+    # Offset the focal point into the fluid: everything below the tread is
+    # solid wheel and renders as empty white.
+    look_at(v, (0.0, Y_WHEEL, WHEEL["z"] + WHEEL["r"] + 0.00073),
+            (0, 1, 0), (0, 0, 1), 0.0011)
+    text_label(v, "wheel tread, top.  2.2 mm tall view.  "
+                  "4 layers requested, 3.6 built, 63 % of the asked thickness")
     save(v, args.out, "mesh_layers_tread")
 
     # Front of the tread, stagnation side
     hide_all(v)
     show_mesh(sy, v, lw=1.1)
-    look_at(v, (-WHEEL["r"], Y_WHEEL, WHEEL["z"]), (0, 1, 0), (0, 0, 1), 0.0045)
-    text_label(v, "wheel tread, upstream face")
+    look_at(v, (-WHEEL["r"] - 0.00073, Y_WHEEL, WHEEL["z"]),
+            (0, 1, 0), (0, 0, 1), 0.0011)
+    text_label(v, "wheel tread, upstream face.  2.2 mm tall view")
     save(v, args.out, "mesh_layers_tread_front")
 
     # Contact patch
     hide_all(v)
     show_mesh(sy, v, lw=1.1)
-    look_at(v, (0.0, Y_WHEEL, 0.002), (0, 1, 0), (0, 0, 1), 0.006)
-    text_label(v, "contact patch.  plinth cuts the ground at z = 0")
+    # Zoomed out: the centre of the contact region is solid plinth, so a
+    # tight view there is mostly empty.
+    # One side only: at the wheel centre the whole region |x| < 18 mm is
+    # solid plinth and wheel, so a symmetric view is half empty.
+    look_at(v, (-0.014, Y_WHEEL, 0.0035), (0, 1, 0), (0, 0, 1), 0.007)
+    text_label(v, "contact patch, upstream side, 14 mm tall view.  the gap "
+                  "closes onto the plinth, which has no layers")
     save(v, args.out, "mesh_layers_contact")
 
     # =====================================================================
@@ -139,14 +157,19 @@ def main():
 
     hide_all(v)
     show_mesh(sw, v, lw=0.6)
-    look_at(v, (-0.098, 0.05, 0.022), (0, 1, 0), (0, 0, 1), 0.030)
-    text_label(v, "wing section at y = 50 mm, inverted NACA 4412")
+    look_at(v, (0.5 * (WING_LE_X + WING_TE[0]), 0.05,
+                0.5 * (WING_SECTION_Z[0] + WING_SECTION_Z[1])),
+            (0, 1, 0), (0, 0, 1), 0.028)
+    text_label(v, "wing section at y = 50 mm, inverted NACA 4412.  "
+                  "suction side is the lower one")
     save(v, args.out, "mesh_wing_section")
 
     hide_all(v)
     show_mesh(sw, v, lw=1.2)
-    look_at(v, (-0.0516, 0.05, 0.0145), (0, 1, 0), (0, 0, 1), 0.0035)
-    text_label(v, "blunt trailing edge, 0.5 mm.  no prism layers here")
+    look_at(v, (WING_TE[0] + 0.0010, 0.05, WING_TE[1]),
+            (0, 1, 0), (0, 0, 1), 0.0022)
+    text_label(v, "blunt trailing edge, 0.5 mm thick, 4.4 mm tall view.  "
+                  "no prism layers here")
     save(v, args.out, "mesh_wing_te")
 
     # =====================================================================

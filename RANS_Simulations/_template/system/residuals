@@ -12,14 +12,25 @@ residuals
     type            solverInfo;
     libs            (utilityFunctionObjects);
 
+    // Every iteration, so the .dat file gives a complete convergence history.
     writeControl    timeStep;
     writeInterval   1;
 
     fields          (U p k omega);
 
-    // Also writes the per-cell initial residual fields, so a stalled case can
-    // be opened in ParaView to see *where* it is not converging.
-    writeResidualFields true;
+    // KEEP THIS false.
+    //
+    // writeResidualFields writes the per-cell residual fields at the function
+    // object's write control - which is every iteration, not at write times.
+    // Measured on the baseline case: 6 fields x 20 ranks = 120 small files
+    // per iteration, i.e. a time directory per iteration and ~240 000 files
+    // over a 2000-iteration run. On a network filesystem that is both a
+    // performance problem and a mess, and purgeWrite does not clean it up
+    // because these are not solver-written times.
+    //
+    // Turn it on deliberately, for a short run, when you need to see *where*
+    // a case will not converge - then turn it off again.
+    writeResidualFields false;
 }
 
 
