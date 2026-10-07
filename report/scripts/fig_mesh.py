@@ -103,18 +103,18 @@ def main():
     show_mesh(sy, v, lw=1.1)
     # Offset the focal point into the fluid: everything below the tread is
     # solid wheel and renders as empty white.
-    look_at(v, (0.0, Y_WHEEL, WHEEL["z"] + WHEEL["r"] + 0.00073),
-            (0, 1, 0), (0, 0, 1), 0.0011)
-    text_label(v, "wheel tread, top.  2.2 mm tall view.  "
+    look_at(v, (0.0, Y_WHEEL, WHEEL["z"] + WHEEL["r"] + 0.0021),
+            (0, 1, 0), (0, 0, 1), 0.0035)
+    text_label(v, "wheel tread, top.  7 mm tall view.  "
                   "4 layers requested, 3.6 built, 63 % of the asked thickness")
     save(v, args.out, "mesh_layers_tread")
 
     # Front of the tread, stagnation side
     hide_all(v)
     show_mesh(sy, v, lw=1.1)
-    look_at(v, (-WHEEL["r"] - 0.00073, Y_WHEEL, WHEEL["z"]),
-            (0, 1, 0), (0, 0, 1), 0.0011)
-    text_label(v, "wheel tread, upstream face.  2.2 mm tall view")
+    look_at(v, (-WHEEL["r"] - 0.0021, Y_WHEEL, WHEEL["z"]),
+            (0, 1, 0), (0, 0, 1), 0.0035)
+    text_label(v, "wheel tread, upstream face.  7 mm tall view")
     save(v, args.out, "mesh_layers_tread_front")
 
     # Contact patch
@@ -138,7 +138,7 @@ def main():
     hide_all(v)
     show_mesh(sx, v, lw=0.5)
     # Looking along +x: image-right is -y, so y grows to the left
-    look_at(v, (X_AXIS, 0.070, 0.050), (1, 0, 0), (0, 0, 1), 0.055)
+    look_at(v, (X_AXIS, 0.066, 0.046), (1, 0, 0), (0, 0, 1), 0.068)
     text_label(v, "mesh, x = 0 through the wheel axis")
     save(v, args.out, "mesh_slice_x_overview")
 
