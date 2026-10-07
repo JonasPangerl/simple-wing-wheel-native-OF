@@ -22,8 +22,17 @@ site-provided build saves you an hour.
 
 ## 1.2 Building OpenFOAM v2606 from source
 
-Needed only if no v2606 is installed. Takes 1–3 hours on 20 cores and about
-15 GB.
+Needed only if no v2606 is installed.
+
+Measured on a 24-core Rocky 8 workstation with `-j 20`:
+
+| | |
+|---|---|
+| ThirdParty | 6 min |
+| Core, first pass | 33 min |
+| Core, second pass | 3 min |
+| **total** | **~42 min** |
+| disk | 2.9 GB core + 2.3 GB ThirdParty + 0.4 GB tarballs |
 
 ### Prerequisites
 
