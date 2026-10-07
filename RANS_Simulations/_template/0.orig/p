@@ -47,9 +47,29 @@ boundaryField
         type            slip;
     }
 
-    "(ground|wingGroup|wheelRotating|wheelGround)"
+    // One literal entry per wall group. These MUST NOT be collapsed into a
+    // regex such as "(ground|wingGroup|...)": OpenFOAM resolves patch groups
+    // only for literal keywords, and matches regex keys against patch *names*
+    // only. A regex here would leave every wing and wheel patch unset and
+    // abort the solver with "Cannot find patchField entry".
+    ground
     {
         type            zeroGradient;
+    }
+
+    wingGroup
+    {
+        $ground;
+    }
+
+    wheelRotating
+    {
+        $ground;
+    }
+
+    wheelGround
+    {
+        $ground;
     }
 }
 

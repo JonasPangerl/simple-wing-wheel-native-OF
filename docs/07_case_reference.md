@@ -307,6 +307,29 @@ group for its velocity condition.
 Adding an STL region means adding it to a group in `snappyHexMeshDict` — not
 editing five field files.
 
+### A group must never sit inside a regex key
+
+In `0.orig/*`, each group needs its own **literal** entry:
+
+```c
+ground        { type zeroGradient; }   // correct
+wingGroup     { $ground; }             // correct
+"(ground|wingGroup)" { ... }           // silently wrong
+```
+
+`GeometricBoundaryField::readField` works in three passes: exact patch names,
+then patch **groups**, then regex. The first two only consider keys for which
+`keyword().isLiteral()` is true, and the regex pass matches against patch
+**names** only. A group name inside a regex therefore matches nothing at all.
+The patches fall through unset and the run aborts with
+
+```
+Cannot find patchField entry for wing-suction
+```
+
+Regex over genuine patch names — `"(side|sky)"`, `"(inlet|outlet)"` — is fine,
+and is used in these files.
+
 ---
 
 Next: [8. Troubleshooting](08_troubleshooting.md)

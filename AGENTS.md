@@ -55,6 +55,23 @@ consequences that are not local.
    conditions and force groups address those. Adding an STL region means
    adding it to a group, not editing five field files.
 
+9. **Never put a patch group inside a regex key.** In `0.orig/*`, a group must
+   be its own **literal** entry:
+
+   ```c
+   ground        { type zeroGradient; }   // correct
+   wingGroup     { $ground; }             // correct
+   "(ground|wingGroup)" { ... }           // SILENTLY WRONG
+   ```
+
+   `GeometricBoundaryField::readField` resolves patch names (step 1) and patch
+   groups (step 2) only for keys where `keyword().isLiteral()`. Regex keys are
+   handled in step 3 and are matched against patch **names** only. A group
+   inside a regex therefore matches nothing, every wing and wheel patch is
+   left unset, and the run aborts with
+   `Cannot find patchField entry for wing-suction`.
+   Regex over real patch names, like `"(side|sky)"`, is fine.
+
 ## Layout
 
 ```

@@ -51,10 +51,30 @@ boundaryField
     // kLowReWallFunction, not kqRWallFunction: the layer stack puts the first
     // cell centre at y+ ~ 2.5, which is inside the buffer layer. The low-Re
     // variant is valid across the whole y+ range, the pure high-Re form is not.
-    "(ground|wingGroup|wheelRotating|wheelGround)"
+    //
+    // One literal entry per wall group. These MUST NOT be collapsed into a
+    // regex: OpenFOAM resolves patch groups only for literal keywords, and
+    // matches regex keys against patch *names* only. A regex here would leave
+    // every wing and wheel patch unset and abort the solver.
+    ground
     {
         type            kLowReWallFunction;
         value           uniform $kInlet;
+    }
+
+    wingGroup
+    {
+        $ground;
+    }
+
+    wheelRotating
+    {
+        $ground;
+    }
+
+    wheelGround
+    {
+        $ground;
     }
 }
 

@@ -52,10 +52,30 @@ boundaryField
     // omegaWallFunction blends the viscous-sublayer and log-layer forms, so it
     // is already the all-y+ treatment. This is the piece that stands in for
     // HELYX's awtOmegaWallFunction.
-    "(ground|wingGroup|wheelRotating|wheelGround)"
+    //
+    // One literal entry per wall group. These MUST NOT be collapsed into a
+    // regex: OpenFOAM resolves patch groups only for literal keywords, and
+    // matches regex keys against patch *names* only. A regex here would leave
+    // every wing and wheel patch unset and abort the solver.
+    ground
     {
         type            omegaWallFunction;
         value           uniform $omegaInlet;
+    }
+
+    wingGroup
+    {
+        $ground;
+    }
+
+    wheelRotating
+    {
+        $ground;
+    }
+
+    wheelGround
+    {
+        $ground;
     }
 }
 
