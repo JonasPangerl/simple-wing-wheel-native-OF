@@ -75,16 +75,19 @@ step "simpleFoam on $NP ranks"
 # Stops at endTime from include/caseParameters, or earlier when the
 # residualControl block in system/fvSolution is satisfied.
 # Watch from another shell with  ./solve_monitor.sh
-END_TIME=$(caseParam nIterations)
-log "up to ${END_TIME} iterations"
+# '|| true' throughout: under 'set -euo pipefail' a failed extraction in a
+# command substitution would abort the run over a status message.
+END_TIME=$(caseParam nIterations || true)
+log "up to ${END_TIME:-?} iterations"
 
 runParallel simpleFoam
 
 # --- how did it end? --------------------------------------------------------
 if grep -q 'solution converged' log.simpleFoam; then
-    ITERS=$(grep -oE 'Time = [0-9]+' log.simpleFoam | tail -1 | awk '{print $3}')
-    log "CONVERGED after ${ITERS} iterations (residualControl satisfied)"
-    echo "converged ${ITERS}" > .solve_result
+    ITERS=$(grep -oE '^Time = [0-9]+' log.simpleFoam | tail -1 \
+              | awk '{print $3}' || true)
+    log "CONVERGED after ${ITERS:-?} iterations (residualControl satisfied)"
+    echo "converged ${ITERS:-0}" > .solve_result
 else
     log "reached endTime without meeting residualControl"
     log "  -> check the residual trend before trusting the forces:"

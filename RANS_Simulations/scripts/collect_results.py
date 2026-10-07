@@ -176,31 +176,41 @@ def collect_mesh(case):
     """Cell count, layer coverage and checkMesh verdict."""
     out = {}
 
-    snappy = case / "log.snappyHexMesh"
-    if snappy.is_file():
-        text = snappy.read_text(errors="replace")
+    # Final cell count comes from checkMesh, which prints a 'cells:' line in
+    # its mesh-stats block. More dependable than snappyHexMesh's own progress
+    # output, whose wording varies between versions.
+    check = case / "log.checkMesh"
+    if check.is_file():
+        text = check.read_text(errors="replace")
 
-        # Final cell count: the last 'cells:' line snappyHexMesh prints
         cells = re.findall(r"^\s*cells:\s*(\d+)", text, re.MULTILINE)
         if cells:
             out["cells"] = int(cells[-1])
 
-        # Layer coverage, printed as 'Overall layer coverage ... xx %'
-        cov = re.findall(r"[Oo]verall.*?coverage[^0-9]*([0-9.]+)\s*%", text)
-        if cov:
-            out["layer_coverage_pct"] = float(cov[-1])
-
-    check = case / "log.checkMesh"
-    if check.is_file():
-        text = check.read_text(errors="replace")
         out["checkMesh_ok"] = "Mesh OK" in text
         failed = re.findall(r"^\s*\*\*\*(.+)$", text, re.MULTILINE)
         if failed:
             out["checkMesh_failures"] = [f.strip() for f in failed][:10]
 
+    snappy = case / "log.snappyHexMesh"
+    if snappy.is_file():
+        text = snappy.read_text(errors="replace")
+
+        # Fallback cell count, if checkMesh was not run or failed
+        if "cells" not in out:
+            cells = re.findall(r"^\s*cells:\s*(\d+)", text, re.MULTILINE)
+            if cells:
+                out["cells"] = int(cells[-1])
+
+        # Layer coverage, e.g. 'Overall layer coverage ... 98.7 %'
+        cov = re.findall(r"[Oo]verall.*?coverage[^0-9]*([0-9.]+)\s*%", text)
+        if cov:
+            out["layer_coverage_pct"] = float(cov[-1])
+
+    # blockMesh reports 'nCells: <n>', not 'cells:'
     block = case / "log.blockMesh"
     if block.is_file():
-        m = re.search(r"^\s*cells:\s*(\d+)", block.read_text(errors="replace"),
+        m = re.search(r"^\s*nCells:\s*(\d+)", block.read_text(errors="replace"),
                       re.MULTILINE)
         if m:
             out["base_cells"] = int(m.group(1))

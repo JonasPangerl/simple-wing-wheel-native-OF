@@ -114,8 +114,11 @@ step "Background mesh"
 # ---------------------------------------------------------------------------
 runSerial blockMesh
 
-BASE_CELLS=$(grep -m1 'cells:' log.blockMesh | awk '{print $2}')
-log "base mesh: ${BASE_CELLS} cells (expected 123624)"
+# blockMesh prints 'nCells: <n>'. Every extraction in this script ends in
+# '|| true': under 'set -euo pipefail' a grep that matches nothing fails the
+# command substitution and would abort the whole run over a status message.
+BASE_CELLS=$(grep -m1 'nCells' log.blockMesh | awk '{print $2}' || true)
+log "base mesh: ${BASE_CELLS:-?} cells (expected 123624)"
 
 
 # ---------------------------------------------------------------------------
@@ -134,10 +137,6 @@ step "snappyHexMesh on $NP ranks"
 #   ./mesh_monitor.sh
 runParallel snappyHexMesh -overwrite
 
-CELLS=$(grep -E '^Finished meshing' -A3 log.snappyHexMesh \
-          | grep -oE 'cells:[^0-9]*[0-9]+' | grep -oE '[0-9]+$' | tail -1 || true)
-[ -n "${CELLS:-}" ] && log "final mesh: ${CELLS} cells"
-
 
 # ---------------------------------------------------------------------------
 step "Mesh quality"
@@ -153,11 +152,16 @@ fi
 
 grep -E '\*\*\*|Failed|Mesh OK' log.checkMesh | sort -u | sed 's/^/  /' || true
 
+# Final cell count comes from checkMesh, which prints a 'cells:' line in its
+# mesh-stats block. That is more dependable than parsing snappyHexMesh's own
+# progress output.
+CELLS=$(grep -m1 -oE '^[[:space:]]*cells:[[:space:]]*[0-9]+' log.checkMesh \
+          | grep -oE '[0-9]+' || true)
+[ -n "${CELLS:-}" ] && log "final mesh: ${CELLS} cells"
+
 # Layer coverage is the number worth knowing. The HELYX mesh reached 100 %.
-if grep -q 'Layer mesh' log.snappyHexMesh; then
-    grep -A6 'Layer mesh' log.snappyHexMesh | grep -E 'overall|coverage' \
-        | sed 's/^/  /' || true
-fi
+grep -iE 'layer coverage|overall coverage' log.snappyHexMesh \
+    | tail -3 | sed 's/^/  /' || true
 
 
 markDone mesh
