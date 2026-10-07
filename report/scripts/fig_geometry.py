@@ -162,7 +162,7 @@ def main():
         # --- 4. wing regions, close -------------------------------------
         hide_all(v)
         show_all(wing_src, v)
-        look_at(v, (-0.096, 0.052, 0.022), (0.55, 0.65, -0.52), (0, 0, 1), 0.048)
+        look_at(v, (-0.096, 0.050, 0.022), (0.55, 0.65, -0.52), (0, 0, 1), 0.058)
         legend(v, wing_key)
         save(v, args.out, "geom_wing_regions")
 
@@ -170,7 +170,7 @@ def main():
         hide_all(v)
         ground_plane(v, x=(-0.06, 0.06), y=(0.06, 0.13), opacity=0.30)
         show_all(wheel_src, v)
-        look_at(v, (0.0, 0.096, 0.040), (0.55, 0.62, -0.50), (0, 0, 1), 0.040)
+        look_at(v, (0.0, 0.096, 0.038), (0.55, 0.62, -0.50), (0, 0, 1), 0.053)
         legend(v, wheel_key)
         save(v, args.out, "geom_wheel_regions")
 

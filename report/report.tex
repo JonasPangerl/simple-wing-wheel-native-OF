@@ -190,10 +190,12 @@ generator breaks the mesh setup.}\label{fig:regions}
 \item Both STLs consist of two disjoint parts (wing + endplate, wheel +
   plinth), so \texttt{surfaceCheck} says ``not closed''. Expected: no
   \texttt{mode inside} refinement region is attached to either body.
-\item Wheel tessellation was raised to 900 circumferential segments
-  (\SI{0.31}{mm} facets) to match the \SI{0.293}{mm} cell. At the original
-  180 segments the facets were \SI{1.53}{mm} and the layers on the tread were
-  squeezed by them.
+\item Wheel tessellation was raised from 180 to 900 circumferential segments,
+  so the facet is \SI{0.31}{mm} against the \SI{0.293}{mm} cell. At 180
+  segments the facets were \SI{1.53}{mm} --- five times coarser than the cell,
+  i.e. the mesh resolved the wheel as a 180-gon with a visibly wavy surface.
+  \emph{This did not improve the layer coverage on the tread}
+  (63.4\,\% before and after); it was done for geometric fidelity alone.
 \end{itemize}
 
 % ===========================================================================

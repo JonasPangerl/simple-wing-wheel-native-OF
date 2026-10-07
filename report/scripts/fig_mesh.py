@@ -84,14 +84,14 @@ def main():
     hide_all(v)
     show_mesh(sy, v, lw=0.4)
     # Looking along -y, so x to the right and z up
-    look_at(v, (-0.02, Y_WHEEL, 0.045), (0, 1, 0), (0, 0, 1), 0.105)
+    look_at(v, (0.0, Y_WHEEL, 0.072), (0, 1, 0), (0, 0, 1), 0.080)
     text_label(v, "mesh, spanwise slice through the wheel centre (y = 96.4 mm)")
     save(v, args.out, "mesh_slice_y_overview")
 
     # Zoom: the wing-wheel gap region
     hide_all(v)
     show_mesh(sy, v, lw=0.7)
-    look_at(v, (-0.055, Y_WHEEL, 0.022), (0, 1, 0), (0, 0, 1), 0.030)
+    look_at(v, (-0.052, Y_WHEEL, 0.026), (0, 1, 0), (0, 0, 1), 0.026)
     text_label(v, "wing trailing edge to wheel front, same slice")
     save(v, args.out, "mesh_slice_y_gap")
 
@@ -138,7 +138,7 @@ def main():
     hide_all(v)
     show_mesh(sx, v, lw=0.5)
     # Looking along +x: image-right is -y, so y grows to the left
-    look_at(v, (X_AXIS, 0.075, 0.045), (1, 0, 0), (0, 0, 1), 0.065)
+    look_at(v, (X_AXIS, 0.070, 0.050), (1, 0, 0), (0, 0, 1), 0.055)
     text_label(v, "mesh, x = 0 through the wheel axis")
     save(v, args.out, "mesh_slice_x_overview")
 
@@ -180,7 +180,7 @@ def main():
 
     hide_all(v)
     show_mesh(sz, v, lw=0.4)
-    look_at(v, (-0.04, 0.06, 0.0012), (0, 0, -1), (1, 0, 0), 0.085)
+    look_at(v, (-0.030, 0.062, 0.0012), (0, 0, -1), (1, 0, 0), 0.072)
     text_label(v, "mesh 1.2 mm above the ground, plan view")
     save(v, args.out, "mesh_slice_z")
 

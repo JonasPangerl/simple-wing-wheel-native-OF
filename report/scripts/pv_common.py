@@ -38,9 +38,9 @@ REGION_COLOURS = {
     "wing-endplate_LE":     [0.28, 0.70, 0.80],
     "wing-endplate_TE":     [0.99, 0.60, 0.35],   # highlight
     # wheel: warm greys and greens
-    "wheel-tread":          [0.35, 0.60, 0.35],
-    "wheel-shoulders":      [0.62, 0.80, 0.38],
-    "wheel-sidewall":       [0.48, 0.66, 0.40],
+    "wheel-tread":          [0.20, 0.52, 0.28],
+    "wheel-shoulders":      [0.72, 0.82, 0.25],
+    "wheel-sidewall":       [0.22, 0.60, 0.68],
     "wheel-plinth":         [0.85, 0.45, 0.60],   # highlight: contact patch
 }
 
@@ -58,6 +58,12 @@ def new_view(width=1600, height=1000, parallel=True):
     return v
 
 
+# Last camera requested via look_at(). Re-applied by save() because adding a
+# Text source with Show() afterwards can reset the view camera, which
+# silently replaced a 0.21 m tall view with the whole 1.9 m domain.
+_LAST_CAM = {}
+
+
 def look_at(view, focal, direction, up, scale):
     """Aim a parallel-projection camera.
 
@@ -67,14 +73,28 @@ def look_at(view, focal, direction, up, scale):
     scale     half-height of the visible region, in metres
     """
     d = 10.0 * max(scale, 1e-3)
-    view.CameraFocalPoint = list(focal)
-    view.CameraPosition = [focal[i] - direction[i] * d for i in range(3)]
-    view.CameraViewUp = list(up)
-    view.CameraParallelScale = scale
+    _LAST_CAM["focal"] = list(focal)
+    _LAST_CAM["pos"] = [focal[i] - direction[i] * d for i in range(3)]
+    _LAST_CAM["up"] = list(up)
+    _LAST_CAM["scale"] = scale
+    _apply_cam(view)
+
+
+def _apply_cam(view):
+    if not _LAST_CAM:
+        return
+    view.CameraFocalPoint = _LAST_CAM["focal"]
+    view.CameraPosition = _LAST_CAM["pos"]
+    view.CameraViewUp = _LAST_CAM["up"]
+    view.CameraParallelProjection = 1
+    view.CameraParallelScale = _LAST_CAM["scale"]
     Render(view)
 
 
 def save(view, out_dir, name, width=None, height=None):
+    # Re-apply the requested camera: Show() calls made after look_at (the
+    # text labels and legends) can reset it.
+    _apply_cam(view)
     os.makedirs(out_dir, exist_ok=True)
     path = os.path.join(out_dir, name + ".png")
     res = [width or view.ViewSize[0], height or view.ViewSize[1]]
@@ -109,7 +129,7 @@ def add_scalar_bar(view, lut, title, fmt="%.2f"):
     return bar
 
 
-def text_label(view, text, pos=(0.02, 0.94), size=16):
+def text_label(view, text, pos=(0.02, 0.94), size=24):
     t = Text(registrationName="lbl_" + text[:12])
     t.Text = text
     d = Show(t, view)
@@ -172,7 +192,7 @@ def symmetry_plane(view, x=(-0.20, 0.15), z=(0.0, 0.07), opacity=0.18):
     return p, d
 
 
-def legend(view, entries, pos=(0.015, 0.97), dy=0.026, size=14):
+def legend(view, entries, pos=(0.015, 0.965), dy=0.036, size=22):
     """Colour legend built from stacked Text sources.
 
     ParaView has no categorical legend across several sources, and these
