@@ -1,0 +1,23 @@
+# Wing and Wheel Geometry Generator - Parameter Configuration
+# All combinations of the listed parameters will be generated
+
+# Variable parameters (lists - all combinations will be generated)
+# Updated for T/c = 1.6 wheel track and S = endplate outer edge convention
+spans: [0.97, 1.06, 1.24, 1.42, 1.60]     # S/c values (wing half-span = endplate outer edge, normalized by chord)
+heights: [0.08, 0.13, 0.18, 0.28]         # h/c values (ride height normalized by chord)
+angles: [0, 2, 4, 6, 8, 10, 12]           # AOA in degrees
+widths: [0.56, 0.63, 0.70]                # W/c values (wheel width normalized by chord)
+
+# Fixed parameters
+trailing_edge_thickness: 0.5    # mm - blunt trailing edge thickness
+chord: 75.0                     # mm - wing chord length (reference dimension)
+
+# Plinth parameters
+plinth_cut_height: 0.5          # mm - height above ground to cut wheel for plinth
+plinth_depth: 6.0               # mm - how far plinth extends below ground (z=0)
+
+# Airfoil data
+airfoil_csv: Documents/naca4412_75mmCord.csv
+
+# Output settings
+output_dir: ./output

@@ -1,0 +1,63 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  v2606                                 |
+|   \\  /    A nd           | Website:  www.openfoam.com                      |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       volScalarField;
+    object      omega;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+#include "<case>/include/caseParameters"
+
+dimensions      [0 0 -1 0 0 0 0];
+
+internalField   uniform $omegaInlet;
+
+boundaryField
+{
+    #includeEtc "caseDicts/setConstraintTypes"
+
+    inlet
+    {
+        type            turbulentMixingLengthFrequencyInlet;
+        mixingLength    $turbL;
+        k               k;
+        value           uniform $omegaInlet;
+    }
+
+    outlet
+    {
+        type            inletOutlet;
+        inletValue      uniform $omegaInlet;
+        value           uniform $omegaInlet;
+    }
+
+    symmetry
+    {
+        type            symmetry;
+    }
+
+    "(side|sky)"
+    {
+        type            slip;
+    }
+
+    // omegaWallFunction blends the viscous-sublayer and log-layer forms, so it
+    // is already the all-y+ treatment. This is the piece that stands in for
+    // HELYX's awtOmegaWallFunction.
+    "(ground|wingGroup|wheelRotating|wheelGround)"
+    {
+        type            omegaWallFunction;
+        value           uniform $omegaInlet;
+    }
+}
+
+
+// ************************************************************************* //

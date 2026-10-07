@@ -1,0 +1,34 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| Force coefficients, split the same three ways the HELYX setup reported      |
+| them: wing only, wheel only, and both together.                             |
+|                                                                             |
+| Output: postProcessing/forceCoeffs_<group>/0/coefficient.dat                 |
+|                                                                             |
+| NOTE ON Aref: it is 1 m^2, not the wing planform area. The reported Cl and   |
+| Cd are therefore coefficient-AREAS (CL*A, CD*A in m^2), which is what the    |
+| Diasinos papers tabulate. Changing Aref silently breaks that comparison.     |
+|                                                                             |
+| The shared settings are in include/forceCoeffsBase - see the note in there  |
+| for why they are not a base dictionary in this file.                        |
+\*---------------------------------------------------------------------------*/
+
+forceCoeffs_wing
+{
+    #include "<case>/include/forceCoeffsBase"
+    patches     (wingGroup);
+}
+
+forceCoeffs_wheel
+{
+    #include "<case>/include/forceCoeffsBase"
+    patches     (wheelGroup);
+}
+
+forceCoeffs_total
+{
+    #include "<case>/include/forceCoeffsBase"
+    patches     (wingGroup wheelGroup);
+}
+
+
+// ************************************************************************* //

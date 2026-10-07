@@ -1,0 +1,26 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| Per-iteration initial residuals for every solved field.                     |
+|                                                                             |
+| Output: postProcessing/residuals/0/solverInfo.dat                           |
+|                                                                             |
+| This is the file the campaign tooling reads to decide whether a case        |
+| converged, and what solve_monitor.sh plots.                                 |
+\*---------------------------------------------------------------------------*/
+
+residuals
+{
+    type            solverInfo;
+    libs            (utilityFunctionObjects);
+
+    writeControl    timeStep;
+    writeInterval   1;
+
+    fields          (U p k omega);
+
+    // Also writes the per-cell initial residual fields, so a stalled case can
+    // be opened in ParaView to see *where* it is not converging.
+    writeResidualFields true;
+}
+
+
+// ************************************************************************* //

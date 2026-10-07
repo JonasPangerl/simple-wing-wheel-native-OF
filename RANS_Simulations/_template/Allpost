@@ -1,0 +1,90 @@
+#!/usr/bin/env bash
+# ===========================================================================
+# Allpost - post-process this case
+#
+#   ./Allpost --summary       collect forces/residuals/y+ -> results.{json,txt}
+#   ./Allpost --reconstruct   merge processor*/ into a single-piece case
+#   ./Allpost --images        render images with ParaView (needs PVBATCH)
+#   ./Allpost --all           all three, in that order
+#
+# --summary is cheap and is what the campaign runs. --reconstruct is the
+# expensive one: it writes a full copy of the mesh and fields outside the
+# processor directories, so only do it for cases you actually want to open
+# in ParaView.
+# ===========================================================================
+set -euo pipefail
+cd "${0%/*}" || exit 1
+
+source ../scripts/caseFunctions.sh
+
+DO_SUMMARY=0
+DO_RECONSTRUCT=0
+DO_IMAGES=0
+
+[ $# -eq 0 ] && DO_SUMMARY=1
+
+for arg in "$@"; do
+    case "$arg" in
+        --summary|-s)      DO_SUMMARY=1 ;;
+        --reconstruct|-r)  DO_RECONSTRUCT=1 ;;
+        --images|-i)       DO_IMAGES=1 ;;
+        --all|-a)          DO_SUMMARY=1; DO_RECONSTRUCT=1; DO_IMAGES=1 ;;
+        -h|--help)         sed -n '2,16p' "$0"; exit 0 ;;
+        *)                 die "unknown argument: $arg" ;;
+    esac
+done
+
+
+# ---------------------------------------------------------------------------
+if [ "$DO_SUMMARY" -eq 1 ]; then
+    step "Summary"
+    python3 ../scripts/collect_results.py . --window 50 \
+        || die "collect_results.py failed"
+fi
+
+
+# ---------------------------------------------------------------------------
+if [ "$DO_RECONSTRUCT" -eq 1 ]; then
+    step "Reconstruct"
+    haveDecomposedMesh || die "nothing to reconstruct - no processor*/ mesh"
+
+    # The mesh lives in constant/ (steady case), the fields in the time dirs.
+    if [ ! -f constant/polyMesh/owner ]; then
+        runSerial reconstructParMesh -constant -mergeTol 1e-6
+    else
+        log "constant/polyMesh already present, skipping reconstructParMesh"
+    fi
+
+    runSerial reconstructPar -latestTime
+
+    log "case.foam can now be opened in ParaView"
+fi
+
+
+# ---------------------------------------------------------------------------
+if [ "$DO_IMAGES" -eq 1 ]; then
+    step "Images"
+
+    [ -n "${PVBATCH:-}" ] \
+        || die "PVBATCH is empty in env/project.env - cannot render images"
+    [ -x "$PVBATCH" ] \
+        || die "PVBATCH is not executable: $PVBATCH"
+
+    # The ParaView scripts read case.foam, which needs a reconstructed case.
+    if [ ! -f constant/polyMesh/owner ]; then
+        die "no reconstructed mesh. Run ./Allpost --reconstruct first."
+    fi
+
+    POST_DIR="../postprocessing"
+    mkdir -p images
+
+    log "rendering slices"
+    "$PVBATCH" "${POST_DIR}/slice_render.py" "$CASE_DIR" \
+        --config "${POST_DIR}" --output "${CASE_DIR}/images" \
+        > log.slice_render 2>&1 \
+        || { tail -n 30 log.slice_render >&2; die "slice rendering failed"; }
+
+    log "images in ${CASE_DIR}/images"
+fi
+
+step "Post-processing done in $(elapsed)"

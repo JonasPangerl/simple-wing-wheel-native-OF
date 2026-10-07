@@ -1,0 +1,84 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| Derived fields for post-processing, written only at write times so they     |
+| cost almost nothing during the run.                                         |
+|                                                                             |
+| These replace the HELYX 'additionalFields' step. The HELYX list also had    |
+| normalizedHelicity, helicitySignedNormalizedQ and k-factor, which have no   |
+| native equivalent; Q and vorticity cover the same vortex-identification     |
+| job. See docs/05_postprocessing.md.                                         |
+\*---------------------------------------------------------------------------*/
+
+#include "<case>/include/caseParameters"
+
+// Static pressure coefficient, Cp
+pressureCoeff
+{
+    type            pressure;
+    libs            (fieldFunctionObjects);
+
+    mode            staticCoeff;
+    result          Cp;
+
+    // p is kinematic in simpleFoam, so the function object needs rhoInf to
+    // put the coefficient on the usual scale.
+    rho             rhoInf;
+    rhoInf          $rhoInf;
+    pInf            $pRef;
+    UInf            $flowVelocity;
+
+    writeControl    writeTime;
+    executeControl  writeTime;
+}
+
+// Total pressure coefficient, CpT - this is the one that shows vortex cores
+// and wake losses clearly on a slice.
+totalPressureCoeff
+{
+    type            pressure;
+    libs            (fieldFunctionObjects);
+
+    mode            totalCoeff;
+    result          CpT;
+
+    rho             rhoInf;
+    rhoInf          $rhoInf;
+    pInf            $pRef;
+    UInf            $flowVelocity;
+
+    writeControl    writeTime;
+    executeControl  writeTime;
+}
+
+vorticity
+{
+    type            vorticity;
+    libs            (fieldFunctionObjects);
+
+    writeControl    writeTime;
+    executeControl  writeTime;
+}
+
+// Q-criterion, for isosurfaces of the endplate and wheel vortices
+Q
+{
+    type            Q;
+    libs            (fieldFunctionObjects);
+
+    writeControl    writeTime;
+    executeControl  writeTime;
+}
+
+// Wall shear stress, for skin friction and separation lines
+wallShearStress
+{
+    type            wallShearStress;
+    libs            (fieldFunctionObjects);
+
+    patches         (wingGroup wheelGroup ground);
+
+    writeControl    writeTime;
+    executeControl  writeTime;
+}
+
+
+// ************************************************************************* //

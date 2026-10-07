@@ -1,0 +1,61 @@
+#!/usr/bin/env bash
+# ===========================================================================
+# Allclean - remove generated data from this case
+#
+#   ./Allclean              remove the solution, keep the mesh
+#   ./Allclean --mesh       also remove the mesh and the prepared geometry
+#   ./Allclean --all        back to a freshly prepared case
+#
+# Never touches the inputs: 0.orig/, system/, constant/{transport,turbulence}
+# Properties, include/ and the All* scripts always survive.
+# ===========================================================================
+set -euo pipefail
+cd "${0%/*}" || exit 1
+
+CLEAN_MESH=0
+for arg in "$@"; do
+    case "$arg" in
+        --mesh|--all|-a) CLEAN_MESH=1 ;;
+        -h|--help)       sed -n '2,11p' "$0"; exit 0 ;;
+        *)               echo "unknown argument: $arg" >&2; exit 1 ;;
+    esac
+done
+
+echo "cleaning $(basename "$(pwd)")"
+
+# --- solution --------------------------------------------------------------
+# Time directories: any all-numeric name except 0.orig. constant/ and system/
+# are named, so they are never caught by this.
+find . -maxdepth 1 -type d -regextype posix-extended \
+     -regex '\./[0-9]+(\.[0-9]+)?' -exec rm -rf {} +
+
+rm -rf postProcessing
+rm -f  log.simpleFoam log.potentialFoam log.patchSummary log.slice_render
+rm -f  results.json results.txt .solve_result .stage_solve
+rm -rf images
+
+if [ "$CLEAN_MESH" -eq 0 ]; then
+    # Keep the decomposed mesh, drop only the decomposed solution
+    for d in processor*; do
+        [ -d "$d" ] || continue
+        find "$d" -maxdepth 1 -type d -regextype posix-extended \
+             -regex ".*/[0-9]+(\.[0-9]+)?" -exec rm -rf {} +
+    done
+    echo "  solution removed, mesh kept"
+    echo "  next: ./Allsolve"
+    exit 0
+fi
+
+# --- mesh and geometry -----------------------------------------------------
+rm -rf processor*
+rm -rf constant/polyMesh
+rm -rf constant/triSurface
+rm -rf constant/extendedFeatureEdgeMesh
+rm -f  log.blockMesh log.decomposePar log.snappyHexMesh log.checkMesh
+rm -f  log.surfaceFeatureExtract log.surfaceTransformPoints.*
+rm -f  log.surfaceCheck.* log.reconstructPar log.reconstructParMesh
+rm -f  geometry_used.txt .stage_mesh
+rm -rf *.obj illegalFaces
+
+echo "  solution, mesh and prepared geometry removed"
+echo "  next: ./Allmesh"

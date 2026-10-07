@@ -1,0 +1,165 @@
+#!/usr/bin/env bash
+# ===========================================================================
+# Allmesh - build the mesh for this case
+#
+#   ./Allmesh              mesh, skip if a mesh is already there
+#   ./Allmesh --force      mesh again even if a mesh exists
+#
+# Pipeline:
+#   geometry  ->  surfaceFeatureExtract  ->  blockMesh
+#             ->  decomposePar  ->  snappyHexMesh (parallel)  ->  checkMesh
+#
+# The mesh is left DECOMPOSED in processor*/ because that is what Allsolve
+# wants. Use ./Allpost --reconstruct if you need a single-piece mesh.
+# ===========================================================================
+set -euo pipefail
+cd "${0%/*}" || exit 1
+
+source ../scripts/caseFunctions.sh
+
+FORCE=0
+for arg in "$@"; do
+    case "$arg" in
+        --force|-f) FORCE=1 ;;
+        -h|--help)  sed -n '2,16p' "$0"; exit 0 ;;
+        *)          die "unknown argument: $arg" ;;
+    esac
+done
+
+if isDone mesh && [ "$FORCE" -eq 0 ]; then
+    log "mesh already built ($(cat .stage_mesh)); use --force to rebuild"
+    exit 0
+fi
+
+clearStage mesh
+clearStage solve
+
+
+# ---------------------------------------------------------------------------
+step "Geometry"
+# ---------------------------------------------------------------------------
+# The generator writes STLs in MILLIMETRES. Everything downstream of here is
+# in metres, so they are scaled on the way in. surfaceTransformPoints keeps
+# the per-solid region names, which is what snappyHexMeshDict refers to.
+
+GEOM_DIR="${PROJECT_ROOT}/Diasinos_Geometry_Generator/output"
+
+unquote() { printf '%s' "${1%\"}" | sed 's/^"//'; }
+
+WING_STL="$(unquote "$(caseParam wingSTL)")"
+WHEEL_STL="$(unquote "$(caseParam wheelSTL)")"
+
+[ -n "$WING_STL" ]  || die "wingSTL is not set in include/caseParameters"
+[ -n "$WHEEL_STL" ] || die "wheelSTL is not set in include/caseParameters"
+
+WING_SRC="${GEOM_DIR}/wings/${WING_STL}"
+WHEEL_SRC="${GEOM_DIR}/wheels/${WHEEL_STL}"
+
+if [ ! -f "$WING_SRC" ] || [ ! -f "$WHEEL_SRC" ]; then
+    [ -f "$WING_SRC" ]  || echo "  missing: $WING_SRC"  >&2
+    [ -f "$WHEEL_SRC" ] || echo "  missing: $WHEEL_SRC" >&2
+    die "geometry not found. Generate it first:
+       cd ${PROJECT_ROOT}/Diasinos_Geometry_Generator && python -m geometry_generator.generate
+     See docs/02_geometry.md."
+fi
+
+mkdir -p constant/triSurface
+
+log "scaling $WING_STL  (mm -> m)"
+runSerial surfaceTransformPoints -scale '(0.001 0.001 0.001)' \
+    "$WING_SRC" constant/triSurface/wing.stl
+mv log.surfaceTransformPoints log.surfaceTransformPoints.wing
+
+log "scaling $WHEEL_STL (mm -> m)"
+runSerial surfaceTransformPoints -scale '(0.001 0.001 0.001)' \
+    "$WHEEL_SRC" constant/triSurface/wheel.stl
+mv log.surfaceTransformPoints log.surfaceTransformPoints.wheel
+
+# Record what was actually meshed, so a case directory is self-describing
+{
+    echo "wing:  $WING_SRC"
+    echo "wheel: $WHEEL_SRC"
+    echo "meshed: $(date '+%Y-%m-%dT%H:%M:%S')"
+} > geometry_used.txt
+
+# Advisory geometry check. Known and expected on this geometry:
+#   - "not closed": the wing and wheel each consist of two separate parts
+#     (body + endplate, wheel + plinth), which is fine for snappyHexMesh
+#   - 2 illegal triangles on the wing endplate outer edge: a duplicate-facet
+#     defect from the generator. See docs/02_geometry.md.
+# Non-fatal on purpose: it would otherwise block the whole campaign.
+step "Geometry check (advisory)"
+for s in wing wheel; do
+    surfaceCheck "constant/triSurface/${s}.stl" > "log.surfaceCheck.${s}" 2>&1 || true
+    printf '  %-6s %s\n' "$s" \
+        "$(grep -m1 'Triangles' "log.surfaceCheck.${s}" || echo '?')"
+    if grep -q 'illegal triangles' "log.surfaceCheck.${s}"; then
+        printf '  %-6s %s\n' "" \
+            "$(grep -m1 'illegal triangles' "log.surfaceCheck.${s}")"
+    fi
+done
+
+
+# ---------------------------------------------------------------------------
+step "Feature edges"
+# ---------------------------------------------------------------------------
+# Writes constant/extendedFeatureEdgeMesh/{wing,wheel}.eMesh, which
+# snappyHexMeshDict snaps to explicitly. Without these the blunt trailing
+# edge and the endplate edges get rounded off.
+runSerial surfaceFeatureExtract
+
+
+# ---------------------------------------------------------------------------
+step "Background mesh"
+# ---------------------------------------------------------------------------
+runSerial blockMesh
+
+BASE_CELLS=$(grep -m1 'cells:' log.blockMesh | awk '{print $2}')
+log "base mesh: ${BASE_CELLS} cells (expected 123624)"
+
+
+# ---------------------------------------------------------------------------
+step "Decompose"
+# ---------------------------------------------------------------------------
+syncNumberOfSubdomains
+rm -rf processor*
+runSerial decomposePar
+
+
+# ---------------------------------------------------------------------------
+step "snappyHexMesh on $NP ranks"
+# ---------------------------------------------------------------------------
+# This is the expensive step: refine -> snap -> add layers. For the baseline
+# case it lands around 19 M cells. Watch it from another shell with
+#   ./mesh_monitor.sh
+runParallel snappyHexMesh -overwrite
+
+CELLS=$(grep -E '^Finished meshing' -A3 log.snappyHexMesh \
+          | grep -oE 'cells:[^0-9]*[0-9]+' | grep -oE '[0-9]+$' | tail -1 || true)
+[ -n "${CELLS:-}" ] && log "final mesh: ${CELLS} cells"
+
+
+# ---------------------------------------------------------------------------
+step "Mesh quality"
+# ---------------------------------------------------------------------------
+# -constant because at this point only the constant/ mesh exists.
+# Does not abort on a failed check: snappyHexMesh meshes of this kind
+# routinely report a handful of bad faces, and the decision whether that
+# matters belongs to whoever reads the log.
+if ! mpirun -np "$NP" ${MPIRUN_ARGS} checkMesh -constant -allGeometry -allTopology \
+        -parallel > log.checkMesh 2>&1; then
+    log "WARNING: checkMesh reported problems, see log.checkMesh"
+fi
+
+grep -E '\*\*\*|Failed|Mesh OK' log.checkMesh | sort -u | sed 's/^/  /' || true
+
+# Layer coverage is the number worth knowing. The HELYX mesh reached 100 %.
+if grep -q 'Layer mesh' log.snappyHexMesh; then
+    grep -A6 'Layer mesh' log.snappyHexMesh | grep -E 'overall|coverage' \
+        | sed 's/^/  /' || true
+fi
+
+
+markDone mesh
+step "Meshing done in $(elapsed)"
+log "next: ./Allsolve"

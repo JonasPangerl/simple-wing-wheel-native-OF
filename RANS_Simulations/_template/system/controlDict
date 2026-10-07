@@ -1,0 +1,57 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  v2606                                 |
+|   \\  /    A nd           | Website:  www.openfoam.com                      |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    object      controlDict;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+#include "<case>/include/caseParameters"
+
+application     simpleFoam;
+
+// 'latestTime' so an interrupted run can be continued by just restarting it
+startFrom       latestTime;
+startTime       0;
+
+stopAt          endTime;
+
+// Steady SIMPLE: "time" is the iteration counter, deltaT is always 1.
+// The run usually stops earlier through residualControl in fvSolution.
+endTime         $nIterations;
+deltaT          1;
+
+writeControl    timeStep;
+writeInterval   $writeEvery;
+
+// Keep only the most recent two written states, so a 420-case campaign does
+// not fill the disk. The final state is always kept.
+purgeWrite      2;
+
+writeFormat     binary;
+writePrecision  8;
+writeCompression off;
+
+timeFormat      general;
+timePrecision   6;
+
+runTimeModifiable true;
+
+functions
+{
+    #include "forceCoeffs"
+    #include "residuals"
+    #include "fieldDerived"
+    #include "yPlus"
+}
+
+
+// ************************************************************************* //

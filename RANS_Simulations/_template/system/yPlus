@@ -1,0 +1,25 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| y+ on all wall patches.                                                    |
+|                                                                             |
+| Output: postProcessing/yPlus/0/yPlus.dat  (min/max/average per patch)      |
+|         plus a yPlus volScalarField at each write time                      |
+|                                                                             |
+| This one matters for this case. The layer stack is sized for y+ ~ 2.5, and  |
+| the wall functions chosen in 0.orig are only the right choice while y+      |
+| stays in that range. Check this before trusting the forces - the campaign   |
+| tooling records the wing and wheel averages for exactly that reason.        |
+\*---------------------------------------------------------------------------*/
+
+yPlus
+{
+    type            yPlus;
+    libs            (fieldFunctionObjects);
+
+    writeControl    writeTime;
+    executeControl  writeTime;
+
+    log             yes;
+}
+
+
+// ************************************************************************* //

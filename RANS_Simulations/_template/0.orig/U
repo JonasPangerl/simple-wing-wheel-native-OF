@@ -1,0 +1,84 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  v2606                                 |
+|   \\  /    A nd           | Website:  www.openfoam.com                      |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       volVectorField;
+    object      U;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+#include "<case>/include/caseParameters"
+
+dimensions      [0 1 -1 0 0 0 0];
+
+internalField   uniform $flowVelocity;
+
+boundaryField
+{
+    #includeEtc "caseDicts/setConstraintTypes"
+
+    inlet
+    {
+        type            fixedValue;
+        value           uniform $flowVelocity;
+    }
+
+    outlet
+    {
+        type            pressureInletOutletVelocity;
+        value           uniform (0 0 0);
+        inletValue      uniform (0 0 0);
+    }
+
+    symmetry
+    {
+        type            symmetry;
+    }
+
+    // Frictionless tunnel walls
+    "(side|sky)"
+    {
+        type            slip;
+    }
+
+    // Moving belt: translates downstream at the freestream speed
+    ground
+    {
+        type            fixedValue;
+        value           uniform $groundVelocity;
+    }
+
+    // Wing and endplate: stationary, no slip
+    wingGroup
+    {
+        type            noSlip;
+    }
+
+    // Tread, shoulders and sidewall spin with the wheel. rotatingWallVelocity
+    // sets the tangential surface velocity from omega x r; the wall stays
+    // geometrically fixed, which is what we want for a steady RANS run.
+    wheelRotating
+    {
+        type            rotatingWallVelocity;
+        origin          $wheelOrigin;
+        axis            $wheelAxis;
+        omega           $wheelOmega;
+    }
+
+    // The contact-patch plinth does not rotate, it moves with the belt
+    wheelGround
+    {
+        type            fixedValue;
+        value           uniform $groundVelocity;
+    }
+}
+
+
+// ************************************************************************* //

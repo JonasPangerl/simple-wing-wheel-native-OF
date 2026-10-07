@@ -1,0 +1,192 @@
+# ============================================================================
+# Slice rendering configuration for slice_render.py (ParaView pvbatch)
+#
+# UNITS: everything is in METRES, matching the solver mesh.
+#   checkMesh reports the domain as
+#     x [-0.712500, 1.181250]  y [0, 0.675000]  z [0, 0.637500]
+#   Reference chord c = 0.075 m, so 1 mm = 0.001.
+#
+# Geometry landmarks (for choosing ranges and frames):
+#   endplate  x -0.14115 .. -0.05040
+#   wing      x -0.13665 .. -0.06165,  z 0.00975 .. 0.01875
+#   wheel     x -0.043875 .. 0.043875, top z 0.08775
+#   wheel y   0.07275 .. 0.12000 (track outer 0.12)
+#   span      endplate outer edge y 0.10650
+#   y = 0 is the symmetry plane (half car), z = 0 is the ground.
+# ============================================================================
+
+# ----------------------------------------------------------------------------
+# Which slice directions to render. Each is switched on/off independently, so
+# you can do x only, x+z, all three, etc.
+# ----------------------------------------------------------------------------
+directions:
+  x:
+    enabled: true
+    spacing: 0.005          # 5 mm
+    start: -0.15
+    end: 0.30
+    # In-plane axes for an x-normal slice: y horizontal, z vertical.
+    # These values were dialled in by hand in the ParaView GUI and read out with
+    # dump_camera.py, so this is the exact view that was approved:
+    #   visible y -0.0015 .. 0.2366 (238 mm), z -0.0016 .. 0.1446 (146 mm)
+    # The ground plane sits 1.6 mm above the bottom edge.
+    frame:
+      horizontal: [-0.0015, 0.2366]   # y
+      vertical: [-0.0016, 0.1446]     # z
+    # Camera looks ALONG this direction. [1,0,0] = looking downstream from
+    # upstream, seeing the front of wing and wheel.
+    # NOTE on handedness: image-right = camera_dir x view_up = -y, so the
+    # symmetry plane (y=0) appears on the RIGHT and outboard on the LEFT. Use
+    # [-1,0,0] to look upstream from behind, which mirrors the image.
+    camera_dir: [1, 0, 0]
+    view_up: [0, 0, 1]
+    # Exact camera override from dump_camera.py. These take precedence over
+    # `frame` and are independent of the image aspect ratio, so the zoom is
+    # reproduced verbatim regardless of resolution.
+    #
+    # centre y shifted from the GUI value 0.117550 by -0.010 so that y=0 (the
+    # symmetry plane, which lands on the RIGHT edge because image-right is -y)
+    # keeps a 10 mm grey band and nothing is clipped there.
+    parallel_scale: 0.073126
+    center: [0.107550, 0.071507]
+
+  y:
+    enabled: true
+    spacing: 0.005
+    start: 0.005
+    end: 0.18
+    # y-normal: x horizontal, z vertical (classic side view).
+    # Dialled in by hand in the ParaView GUI and read out with dump_camera.py:
+    #   visible x -0.1545 .. 0.3290 (484 mm), z -0.0144 .. 0.2826 (297 mm)
+    # The ground plane sits 14.4 mm above the bottom edge.
+    frame:
+      horizontal: [-0.1545, 0.3290]   # x
+      vertical: [-0.0144, 0.2826]     # z
+    # Camera on the -y side looking toward +y, i.e. viewed from outside the
+    # symmetry plane. image-right = camera_dir x view_up = +x, so the flow runs
+    # left to right, as in a conventional side view.
+    camera_dir: [0, 1, 0]
+    view_up: [0, 0, 1]
+    # Exact camera override from dump_camera.py.
+    parallel_scale: 0.148508
+    center: [0.087261, 0.134078]
+
+  z:
+    enabled: true
+    spacing: 0.005
+    start: 0.005
+    end: 0.15
+    # z-normal: x horizontal, y vertical (top view).
+    # Dialled in by hand in the ParaView GUI and read out with dump_camera.py:
+    #   visible x -0.1637 .. 0.3468 (510 mm), y -0.0133 .. 0.3002 (314 mm)
+    frame:
+      horizontal: [-0.1637, 0.3468]   # x
+      vertical: [-0.0133, 0.3002]     # y
+    # Camera above the slice looking down. image-right = camera_dir x view_up
+    # = +x, so the flow runs left to right and the symmetry plane (y=0) is at
+    # the bottom of the image.
+    camera_dir: [0, 0, -1]
+    view_up: [0, 1, 0]
+    # Exact camera override from dump_camera.py.
+    parallel_scale: 0.156752
+    center: [0.091549, 0.143432]
+
+# ----------------------------------------------------------------------------
+# Fields to render.
+#
+# `array`     name as written by the solver (see processor*/<time>/)
+# `component` -1 = magnitude, 0/1/2 = X/Y/Z for vectors, omit for scalars
+# `range`     FIXED colour limits, identical for every case and every slice.
+#             This is what makes images comparable across the campaign.
+#             Run with --report-ranges to see the actual data range first.
+# `colormap`  Turbo everywhere, as requested.
+# ----------------------------------------------------------------------------
+fields:
+  - key: CpT
+    array: CpT
+    label: Total pressure coefficient
+    range: [-1.0, 1.0]
+    colormap: Turbo
+
+  - key: Cp
+    array: Cp
+    label: Pressure coefficient
+    range: [-2.5, 1.0]
+    colormap: Turbo
+
+  - key: Ux
+    array: U
+    component: 0
+    label: Velocity x
+    range: [-5.0, 15.0]
+    colormap: Turbo
+
+  - key: Uy
+    array: U
+    component: 1
+    label: Velocity y
+    range: [-7.5, 7.5]
+    colormap: Turbo
+
+  - key: Uz
+    array: U
+    component: 2
+    label: Velocity z
+    range: [-7.5, 7.5]
+    colormap: Turbo
+
+  # Q criterion, written by the 'Q' function object in system/fieldDerived.
+  # Q scales with the square of a velocity gradient, so this range is a
+  # starting guess: check the real data range once and adjust.
+  #
+  # The previous HELYX setup used helicitySignedNormalizedQ here, whose sign
+  # followed the rotation direction. Native OpenFOAM has no equivalent;
+  # pair Q with vorticityX below to recover the sense of rotation.
+  - key: qCriterion
+    array: Q
+    label: Q criterion
+    range: [-500000.0, 500000.0]
+    colormap: Turbo
+
+  - key: nut
+    array: nut
+    label: Turbulent viscosity
+    range: [0.0, 0.005]
+    colormap: Turbo
+
+  # Streamwise vorticity. NOTE: this is the x-component of `vorticity`, NOT the
+  # turbulence field `omega` (specific dissipation rate), which is unrelated.
+  - key: vorticityX
+    array: vorticity
+    component: 0
+    label: Vorticity x
+    range: [-5000.0, 5000.0]
+    colormap: Turbo
+
+# Subset used by --quick, for fast framing checks.
+quick_fields: [CpT]
+
+# ----------------------------------------------------------------------------
+# Image output. Fixed resolution and background for every image.
+# ----------------------------------------------------------------------------
+image:
+  resolution: [1600, 1000]
+  background: [0.65, 0.65, 0.65]   # neutral grey
+  show_colorbar: false
+  show_axes: false
+  show_orientation_axes: false
+  magnification: 1
+  # Rendered without the 3D geometry, so slices stay unobstructed.
+  show_geometry: false
+
+# ----------------------------------------------------------------------------
+# Data handling
+# ----------------------------------------------------------------------------
+data:
+  # Cell -> point interpolation, so all values are smooth rather than blocky.
+  cell_to_point: true
+  # Merge the 20 decomposed partitions before interpolating, which removes
+  # visible seams at processor boundaries.
+  merge_blocks: true
+  # Latest time by default; set a number to pin a specific time.
+  time: latest

@@ -1,0 +1,99 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| Single source of truth for every number that defines this case.             |
+|                                                                             |
+| Included by the 0.orig field files, constant/* and system/* via             |
+|   #include "<case>/include/caseParameters"                                  |
+|                                                                             |
+| prepare_case.py rewrites the GEOMETRY block when it creates a case from     |
+| this template. Everything else is the same for the whole campaign.          |
+|                                                                             |
+| ALL VALUES ARE SI: metres, seconds, kilograms.                              |
+\*---------------------------------------------------------------------------*/
+
+// ---------------------------------------------------------------------------
+// GEOMETRY  (rewritten per case by prepare_case.py)
+// ---------------------------------------------------------------------------
+caseName        "_template";
+
+spanC           1.42;       // S/c  wing half-span to endplate outer edge
+heightC         0.13;       // h/c  ride height
+aoaDeg          8;          // deg  wing angle of attack
+widthC          0.63;       // W/c  wheel width
+
+wingSTL         "wing_S1.42_h0.13_AOA8.stl";
+wheelSTL        "wheel_W0.63.stl";
+
+
+// ---------------------------------------------------------------------------
+// FREESTREAM
+// ---------------------------------------------------------------------------
+// 10 m/s on a c = 75 mm sub-scale model, as in the Diasinos papers.
+// Re_c = UInf * cRef / nuInf = 10 * 0.075 / 1.60278e-05 = 46 795
+UInf            10;
+flowVelocity    (10 0 0);
+pRef            0;
+
+// Air at 288.16 K
+rhoInf          1.1629;
+nuInf           1.60278e-05;
+
+
+// ---------------------------------------------------------------------------
+// REFERENCE VALUES FOR FORCE COEFFICIENTS
+// ---------------------------------------------------------------------------
+cRef            0.075;      // chord, used as lRef for moment coefficients
+
+// Reference area is deliberately 1 m^2, not the wing planform area. With
+// Aref = 1 the forceCoeffs function object reports CL*A and CD*A
+// ("coefficient-areas"), which is the quantity the Diasinos papers tabulate.
+// Do not "fix" this to a real area without also changing the comparison data.
+ARef            1;
+
+
+// ---------------------------------------------------------------------------
+// TURBULENCE INLET
+// ---------------------------------------------------------------------------
+// Low-turbulence wind tunnel: TI = 0.15 %, mixing length 30 mm.
+//   kInlet     = 1.5 * (UInf * turbI)^2            = 3.375e-04
+//   omegaInlet = sqrt(kInlet) / (Cmu^0.25 * turbL) = 1.118
+turbI           0.0015;
+turbL           0.03;
+kInlet          3.375e-04;
+omegaInlet      1.118;
+
+// nut at the inlet is 'calculated', this is only the initial internal value
+nutInlet        0;
+
+
+// ---------------------------------------------------------------------------
+// MOVING GROUND
+// ---------------------------------------------------------------------------
+// Belt moves downstream at the freestream speed, so the ground is at rest
+// relative to the air far from the model.
+groundVelocity  (10 0 0);
+
+
+// ---------------------------------------------------------------------------
+// ROTATING WHEEL
+// ---------------------------------------------------------------------------
+// The wheel spins about the +y axis through its own centre. The sign follows
+// from requiring the contact point to move with the belt:
+//   v_x(contact) = -omega_y * R  ==  +UInf
+//   omega_y = -UInf / R = -10 / 0.043875 = -227.92 rad/s
+// R = 0.585c = 43.875 mm is also the centre height, so the wheel just
+// touches the ground plane.
+wheelOmega      -227.92;
+wheelAxis       (0 1 0);
+wheelOrigin     (0 0 0.043875);
+
+
+// ---------------------------------------------------------------------------
+// RUN CONTROL
+// ---------------------------------------------------------------------------
+// simpleFoam iterations. The run stops earlier if the residualControl block
+// in system/fvSolution is satisfied.
+nIterations     2000;
+writeEvery      500;
+
+
+// ************************************************************************* //

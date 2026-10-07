@@ -1,0 +1,117 @@
+# Colormap configuration for ParaView rendering
+# Defines colour ranges and lookup tables for each field.
+#
+# FIELD NAMES ARE THE NATIVE OpenFOAM ONES, as written by the function objects
+# in RANS_Simulations/_template/system/fieldDerived and system/yPlus:
+#
+#   Cp                static pressure coefficient        (pressure, staticCoeff)
+#   CpT               total pressure coefficient         (pressure, totalCoeff)
+#   vorticity         vector; colour by Magnitude
+#   Q                 Q criterion
+#   wallShearStress   vector on wall patches; Magnitude
+#   yPlus             on wall patches
+#   U p k omega nut   solver fields
+#
+# The previous HELYX setup also produced normalizedHelicity,
+# helicitySignedNormalizedQ and k-factor. Those have no native equivalent and
+# have been dropped; Q plus vorticity cover vortex identification.
+
+fields:
+  # --- pressure ------------------------------------------------------------
+  Cp:
+    name: "Pressure Coefficient"
+    colormap: "Cool to Warm"
+    range: [-2.0, 1.0]
+    nan_color: [0.5, 0.5, 0.5]
+
+  CpT:
+    name: "Total Pressure Coefficient"
+    colormap: "Cool to Warm"
+    range: [-0.5, 1.0]
+    nan_color: [0.5, 0.5, 0.5]
+
+  # Kinematic pressure, m2/s2. Multiply by rho (1.1629) for Pa.
+  p:
+    name: "Kinematic Pressure"
+    colormap: "Cool to Warm"
+    range: [-100.0, 50.0]
+    nan_color: [0.5, 0.5, 0.5]
+
+  # --- velocity ------------------------------------------------------------
+  U:
+    name: "Velocity Magnitude"
+    colormap: "Rainbow Uniform"
+    range: [0.0, 15.0]
+    nan_color: [0.5, 0.5, 0.5]
+    component: "Magnitude"
+
+  # --- vortex identification ----------------------------------------------
+  vorticity:
+    name: "Vorticity Magnitude"
+    colormap: "Rainbow Uniform"
+    range: [0.0, 5000.0]
+    nan_color: [0.5, 0.5, 0.5]
+    component: "Magnitude"
+
+  # Q = 0.5 (|Omega|^2 - |S|^2). The range is a starting guess only: Q scales
+  # with the square of a velocity gradient, so it is mesh- and
+  # case-dependent. Check the actual data range once and adjust.
+  Q:
+    name: "Q Criterion"
+    colormap: "Cool to Warm (Extended)"
+    range: [-500000.0, 500000.0]
+    nan_color: [0.5, 0.5, 0.5]
+
+  # --- wall quantities -----------------------------------------------------
+  wallShearStress:
+    name: "Wall Shear Stress"
+    colormap: "Rainbow Uniform"
+    range: [0.0, 1.0]
+    nan_color: [0.5, 0.5, 0.5]
+    component: "Magnitude"
+
+  # The layer stack targets y+ ~ 2.5, hence the tight range.
+  yPlus:
+    name: "y+"
+    colormap: "Rainbow Uniform"
+    range: [0.0, 10.0]
+    nan_color: [0.5, 0.5, 0.5]
+
+  # --- turbulence ----------------------------------------------------------
+  k:
+    name: "Turbulent Kinetic Energy"
+    colormap: "Rainbow Uniform"
+    range: [0.0, 1.0]
+    nan_color: [0.5, 0.5, 0.5]
+
+  omega:
+    name: "Specific Dissipation Rate"
+    colormap: "Rainbow Uniform"
+    range: [0.0, 10000.0]
+    nan_color: [0.5, 0.5, 0.5]
+
+  nut:
+    name: "Turbulent Viscosity"
+    colormap: "Rainbow Uniform"
+    range: [0.0, 0.001]
+    nan_color: [0.5, 0.5, 0.5]
+
+
+# Surface rendering settings
+surface:
+  default_field: "Cp"
+  opacity: 1.0
+  specular: 0.3
+
+# Slice rendering settings
+slice:
+  default_field: "CpT"
+  opacity: 1.0
+
+# Streamline settings
+streamlines:
+  seed_type: "line"
+  num_points: 100
+  integration_direction: "FORWARD"
+  max_length: 1.0
+  color_by: "U"

@@ -1,0 +1,105 @@
+# Views configuration for ParaView rendering
+# Each view defines camera position, focal point, and view up vector
+
+views:
+  # Top view - looking down at the wing and wheel
+  top:
+    name: "Top View"
+    camera_position: [0.0, 0.1, 0.5]      # x, y, z in meters
+    focal_point: [0.0, 0.1, 0.0]
+    view_up: [0.0, 1.0, 0.0]
+    parallel_scale: 0.25
+    
+  # Side view - looking from outboard
+  side:
+    name: "Side View"
+    camera_position: [0.0, 0.4, 0.05]
+    focal_point: [0.0, 0.1, 0.05]
+    view_up: [0.0, 0.0, 1.0]
+    parallel_scale: 0.15
+    
+  # Front view - looking from upstream
+  front:
+    name: "Front View"
+    camera_position: [-0.5, 0.1, 0.05]
+    focal_point: [0.0, 0.1, 0.05]
+    view_up: [0.0, 0.0, 1.0]
+    parallel_scale: 0.15
+    
+  # Rear view - looking from downstream
+  rear:
+    name: "Rear View"
+    camera_position: [0.5, 0.1, 0.05]
+    focal_point: [0.0, 0.1, 0.05]
+    view_up: [0.0, 0.0, 1.0]
+    parallel_scale: 0.15
+    
+  # Isometric view
+  iso:
+    name: "Isometric View"
+    camera_position: [-0.3, 0.35, 0.25]
+    focal_point: [0.0, 0.1, 0.03]
+    view_up: [0.0, 0.0, 1.0]
+    parallel_scale: 0.2
+
+# Slice planes for flow visualization
+slices:
+  # Vertical slices (constant y)
+  y_slices:
+    - name: "y=0.05c"
+      origin: [0.0, 0.00375, 0.0]   # y = 0.05 * 0.075m
+      normal: [0.0, 1.0, 0.0]
+    - name: "y=0.5c"
+      origin: [0.0, 0.0375, 0.0]    # y = 0.5 * 0.075m
+      normal: [0.0, 1.0, 0.0]
+    - name: "y=1.0c"
+      origin: [0.0, 0.075, 0.0]     # y = 1.0 * 0.075m
+      normal: [0.0, 1.0, 0.0]
+    - name: "y=1.42c"
+      origin: [0.0, 0.1065, 0.0]    # y = 1.42 * 0.075m (reference span)
+      normal: [0.0, 1.0, 0.0]
+    - name: "y=1.6c"
+      origin: [0.0, 0.12, 0.0]      # y = 1.6 * 0.075m (wheel track)
+      normal: [0.0, 1.0, 0.0]
+      
+  # Horizontal slices (constant z)
+  z_slices:
+    - name: "z=0.01c"
+      origin: [0.0, 0.0, 0.00075]   # z = 0.01 * 0.075m (near ground)
+      normal: [0.0, 0.0, 1.0]
+    - name: "z=0.13c"
+      origin: [0.0, 0.0, 0.00975]   # z = 0.13 * 0.075m (reference height)
+      normal: [0.0, 0.0, 1.0]
+    - name: "z=0.5c"
+      origin: [0.0, 0.0, 0.0375]    # z = 0.5 * 0.075m (mid-wing)
+      normal: [0.0, 0.0, 1.0]
+    - name: "z=0.585c"
+      origin: [0.0, 0.0, 0.043875]  # z = 0.585 * 0.075m (wheel center)
+      normal: [0.0, 0.0, 1.0]
+      
+  # Streamwise slices (constant x)
+  x_slices:
+    - name: "x=-0.5c"
+      origin: [-0.0375, 0.0, 0.0]   # x = -0.5 * 0.075m (upstream of LE)
+      normal: [1.0, 0.0, 0.0]
+    - name: "x=0"
+      origin: [0.0, 0.0, 0.0]       # x = 0 (leading edge)
+      normal: [1.0, 0.0, 0.0]
+    - name: "x=0.5c"
+      origin: [0.0375, 0.0, 0.0]    # x = 0.5 * 0.075m (mid-chord)
+      normal: [1.0, 0.0, 0.0]
+    - name: "x=1.0c"
+      origin: [0.075, 0.0, 0.0]     # x = 1.0 * 0.075m (trailing edge)
+      normal: [1.0, 0.0, 0.0]
+    - name: "x=2.0c"
+      origin: [0.15, 0.0, 0.0]      # x = 2.0 * 0.075m (wake)
+      normal: [1.0, 0.0, 0.0]
+    - name: "x=4.0c"
+      origin: [0.3, 0.0, 0.0]       # x = 4.0 * 0.075m (far wake)
+      normal: [1.0, 0.0, 0.0]
+
+# Image output settings
+output:
+  resolution: [1920, 1080]
+  format: "png"
+  background: [1.0, 1.0, 1.0]  # White background

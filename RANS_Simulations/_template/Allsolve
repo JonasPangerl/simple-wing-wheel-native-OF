@@ -1,0 +1,103 @@
+#!/usr/bin/env bash
+# ===========================================================================
+# Allsolve - run the solver for this case
+#
+#   ./Allsolve                 initialise and solve
+#   ./Allsolve --continue      keep the existing solution and carry on
+#   ./Allsolve --no-potential  skip the potential-flow initialisation
+#
+# Pipeline:
+#   restore 0/  ->  patchSummary  ->  potentialFoam  ->  simpleFoam (parallel)
+#
+# Requires a decomposed mesh from ./Allmesh.
+# ===========================================================================
+set -euo pipefail
+cd "${0%/*}" || exit 1
+
+source ../scripts/caseFunctions.sh
+
+CONTINUE=0
+DO_POTENTIAL=1
+for arg in "$@"; do
+    case "$arg" in
+        --continue|-c)   CONTINUE=1 ;;
+        --no-potential)  DO_POTENTIAL=0 ;;
+        -h|--help)       sed -n '2,14p' "$0"; exit 0 ;;
+        *)               die "unknown argument: $arg" ;;
+    esac
+done
+
+isDone mesh || die "no mesh. Run ./Allmesh first."
+haveDecomposedMesh || die "processor*/constant/polyMesh is missing - rerun ./Allmesh"
+
+NPROC=$(nProcDirs)
+[ "$NPROC" -eq "$NP" ] || die \
+"the mesh is decomposed for $NPROC ranks but env/project.env says NP=$NP.
+     Either set NP=$NPROC, or rebuild the mesh with ./Allmesh --force."
+
+
+# ---------------------------------------------------------------------------
+if [ "$CONTINUE" -eq 1 ]; then
+    step "Continuing from the latest time"
+    # startFrom is 'latestTime' in controlDict, so simpleFoam picks up by
+    # itself. Nothing to reset.
+    log "keeping existing time directories"
+else
+    step "Initial fields"
+    clearStage solve
+    restoreFields0
+
+    # Fails loudly if a boundaryField entry does not cover every patch that
+    # snappyHexMesh created - which is the single most common way this case
+    # breaks after a geometry or dictionary change.
+    step "Boundary condition check"
+    runParallel patchSummary
+    if grep -qiE 'cannot find|not found|unspecified' log.patchSummary; then
+        log "WARNING: patchSummary looks unhappy, check log.patchSummary"
+    fi
+    log "$(grep -c 'patch' log.patchSummary || true) patch entries resolved"
+
+    # ------------------------------------------------------------------
+    if [ "$DO_POTENTIAL" -eq 1 ]; then
+        step "Potential flow initialisation"
+        # Gives simpleFoam a divergence-free starting field, which is worth
+        # a few hundred SIMPLE iterations on a case like this. potentialFoam
+        # builds Phi itself (READ_IF_PRESENT) and takes its boundary types
+        # from p, so no 0/Phi file is needed.
+        runParallel potentialFoam -writephi
+    fi
+fi
+
+
+# ---------------------------------------------------------------------------
+step "simpleFoam on $NP ranks"
+# ---------------------------------------------------------------------------
+# Stops at endTime from include/caseParameters, or earlier when the
+# residualControl block in system/fvSolution is satisfied.
+# Watch from another shell with  ./solve_monitor.sh
+END_TIME=$(caseParam nIterations)
+log "up to ${END_TIME} iterations"
+
+runParallel simpleFoam
+
+# --- how did it end? --------------------------------------------------------
+if grep -q 'solution converged' log.simpleFoam; then
+    ITERS=$(grep -oE 'Time = [0-9]+' log.simpleFoam | tail -1 | awk '{print $3}')
+    log "CONVERGED after ${ITERS} iterations (residualControl satisfied)"
+    echo "converged ${ITERS}" > .solve_result
+else
+    log "reached endTime without meeting residualControl"
+    log "  -> check the residual trend before trusting the forces:"
+    log "     ./Allpost --summary"
+    echo "endTime ${END_TIME}" > .solve_result
+fi
+
+# y+ is the check that decides whether the wall treatment was appropriate
+if [ -f log.simpleFoam ]; then
+    step "y+ on the last write"
+    grep -E 'patch .* y\+ :' log.simpleFoam | tail -20 | sed 's/^/  /' || true
+fi
+
+markDone solve
+step "Solving done in $(elapsed)"
+log "next: ./Allpost"

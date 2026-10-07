@@ -1,0 +1,28 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  v2606                                 |
+|   \\  /    A nd           | Website:  www.openfoam.com                      |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    object      decomposeParDict;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+// numberOfSubdomains is overwritten by the run scripts from the NP setting in
+// env/project.env, so do not rely on the value below. It is only the fallback
+// for running a tool by hand.
+numberOfSubdomains  20;
+
+// scotch needs no geometric hints and balances a locally refined mesh far
+// better than 'simple' or 'hierarchical' would. The previous HELYX setup
+// used ptscotch for the same reason.
+method              scotch;
+
+
+// ************************************************************************* //

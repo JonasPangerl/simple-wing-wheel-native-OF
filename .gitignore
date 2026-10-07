@@ -1,0 +1,80 @@
+# ===========================================================================
+# What is NOT in this repository
+#
+# Rule of thumb: anything a script can regenerate stays out. The repo holds
+# the setup, the docs and one baseline geometry, and should stay under ~10 MB.
+# ===========================================================================
+
+# --- machine-specific ------------------------------------------------------
+env/project.env
+
+# --- generated cases -------------------------------------------------------
+# prepare_case.py creates these from _template/. Tens of GB each once run.
+RANS_Simulations/S[0-9]*/
+
+# --- data generated inside the template -----------------------------------
+RANS_Simulations/_template/processor*/
+RANS_Simulations/_template/constant/polyMesh/
+RANS_Simulations/_template/constant/triSurface/
+RANS_Simulations/_template/constant/extendedFeatureEdgeMesh/
+RANS_Simulations/_template/postProcessing/
+RANS_Simulations/_template/images/
+# Time directories. The negation matters: '0.orig' starts with a digit and
+# would otherwise be excluded, taking the initial fields with it.
+RANS_Simulations/_template/[0-9]*/
+!RANS_Simulations/_template/0.orig/
+RANS_Simulations/_template/log.*
+RANS_Simulations/_template/results.*
+RANS_Simulations/_template/geometry_used.txt
+RANS_Simulations/_template/.stage_*
+RANS_Simulations/_template/.solve_result
+RANS_Simulations/_template/*.obj
+RANS_Simulations/_template/illegalFaces
+
+# --- campaign runtime state ------------------------------------------------
+RANS_Simulations/campaign/logs/
+RANS_Simulations/campaign/campaign_status.csv
+RANS_Simulations/campaign/STOP
+campaign_results.csv
+
+# --- post-processing output ------------------------------------------------
+RANS_Simulations/postprocessing/refinement_boxes/
+
+# --- geometry --------------------------------------------------------------
+# Only the baseline wing and wheel are committed (~8 MB). Everything else is
+# produced by the generator; see docs/02_geometry.md.
+Diasinos_Geometry_Generator/output/**
+!Diasinos_Geometry_Generator/output/wings/
+!Diasinos_Geometry_Generator/output/wings/wing_S1.42_h0.13_AOA8.stl
+!Diasinos_Geometry_Generator/output/wheels/
+!Diasinos_Geometry_Generator/output/wheels/wheel_W0.63.stl
+Diasinos_Geometry_Generator/output_ARCHIVE*/
+
+# --- reference literature --------------------------------------------------
+# The Diasinos papers and the figure traced for the geometry are copyrighted
+# and must not be redistributed from a public repository. They stay local.
+# naca4412_75mmCord.csv is deliberately NOT excluded: it is plain coordinate
+# data and the generator needs it.
+Diasinos_Geometry_Generator/Documents/*.pdf
+Diasinos_Geometry_Generator/Documents/*.jpg
+Diasinos_Geometry_Generator/Documents/*.jpeg
+Diasinos_Geometry_Generator/Documents/*.png
+
+# --- python ----------------------------------------------------------------
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+
+# --- editors and OS --------------------------------------------------------
+.vscode/
+.idea/
+*.swp
+*~
+.DS_Store
+
+# --- stray OpenFOAM / ParaView artefacts ----------------------------------
+*.foam.bak
+*.pvsm
+VTK/

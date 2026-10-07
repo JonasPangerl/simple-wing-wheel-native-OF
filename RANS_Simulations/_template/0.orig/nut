@@ -1,0 +1,60 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  v2606                                 |
+|   \\  /    A nd           | Website:  www.openfoam.com                      |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       volScalarField;
+    object      nut;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+#include "<case>/include/caseParameters"
+
+dimensions      [0 2 -1 0 0 0 0];
+
+internalField   uniform $nutInlet;
+
+boundaryField
+{
+    #includeEtc "caseDicts/setConstraintTypes"
+
+    "(inlet|outlet)"
+    {
+        type            calculated;
+        value           uniform $nutInlet;
+    }
+
+    symmetry
+    {
+        type            symmetry;
+    }
+
+    "(side|sky)"
+    {
+        type            calculated;
+        value           uniform $nutInlet;
+    }
+
+    // nutUSpaldingWallFunction uses Spalding's single continuous law of the
+    // wall, so it is valid from y+ < 1 through the buffer layer into the log
+    // layer. That is what makes the y+ ~ 2.5 layer stack defensible, and it is
+    // the closest native equivalent to HELYX's awtNutWallFunction.
+    //
+    // It also handles moving walls correctly, which matters here: it works on
+    // the velocity relative to the wall, so the belt and the spinning wheel
+    // are treated properly.
+    "(ground|wingGroup|wheelRotating|wheelGround)"
+    {
+        type            nutUSpaldingWallFunction;
+        value           uniform $nutInlet;
+    }
+}
+
+
+// ************************************************************************* //

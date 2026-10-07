@@ -1,0 +1,50 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  v2606                                 |
+|   \\  /    A nd           | Website:  www.openfoam.com                      |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    object      meshQualityDict;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+// Start from the OpenFOAM defaults, then relax the limits the same way the
+// previous HELYX setup did. A layer-heavy external aero mesh needs looser
+// limits than the defaults, otherwise snappyHexMesh discards layer cells and
+// coverage collapses.
+#includeEtc "caseDicts/meshQualityDict"
+
+//- Non-orthogonality: HELYX allowed 75 deg (default is 65)
+maxNonOrtho         75;
+
+//- Internal skewness: HELYX allowed 6 (default is 4)
+maxInternalSkewness 6;
+
+//- Boundary skewness, as before
+maxBoundarySkewness 20;
+
+//- Face interpolation weight (0 -> 0.5)
+minFaceWeight       0.05;
+
+//- Cell volume ratio across a face
+minVolRatio         1e-4;
+
+//- Cell determinant
+minDeterminant      1e-4;
+
+//- Face twist
+minTwist            0.05;
+
+//- Tetrahedral quality. Deliberately permissive: with absolute layer
+//  thicknesses on a curved surface, enforcing a positive tet quality costs
+//  most of the layer coverage. HELYX used -1e30 here too.
+minTetQuality       -1e30;
+
+
+// ************************************************************************* //

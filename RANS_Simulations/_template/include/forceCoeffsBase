@@ -1,0 +1,37 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| Settings shared by the three forceCoeffs function objects in               |
+| system/forceCoeffs. Included inside each of them, so it must contain only   |
+| the entries common to all three - never a 'patches' entry.                  |
+|                                                                             |
+| This lives in include/ rather than as a base dictionary inside the          |
+| functions block on purpose: anything that is a dictionary in there is       |
+| turned into a real function object, and a forceCoeffs without 'patches'     |
+| aborts the run.                                                             |
+\*---------------------------------------------------------------------------*/
+
+type            forceCoeffs;
+libs            (forces);
+
+writeControl    timeStep;
+writeInterval   1;
+log             no;
+
+// rho = rhoInf tells the function object that the solver is incompressible
+// and p is kinematic, so it applies rhoInf itself.
+rho             rhoInf;
+rhoInf          $rhoInf;
+
+magUInf         $UInf;
+lRef            $cRef;
+Aref            $ARef;
+
+liftDir         (0 0 1);
+dragDir         (1 0 0);
+pitchAxis       (0 1 0);
+
+// Moments about the wheel centre at ground level, the origin of the
+// geometry generator's coordinate system.
+CofR            (0 0 0);
+
+
+// ************************************************************************* //

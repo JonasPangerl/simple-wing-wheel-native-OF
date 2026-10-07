@@ -1,0 +1,62 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  v2606                                 |
+|   \\  /    A nd           | Website:  www.openfoam.com                      |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       volScalarField;
+    object      k;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+#include "<case>/include/caseParameters"
+
+dimensions      [0 2 -2 0 0 0 0];
+
+internalField   uniform $kInlet;
+
+boundaryField
+{
+    #includeEtc "caseDicts/setConstraintTypes"
+
+    inlet
+    {
+        type            turbulentIntensityKineticEnergyInlet;
+        intensity       $turbI;
+        value           uniform $kInlet;
+    }
+
+    outlet
+    {
+        type            inletOutlet;
+        inletValue      uniform $kInlet;
+        value           uniform $kInlet;
+    }
+
+    symmetry
+    {
+        type            symmetry;
+    }
+
+    "(side|sky)"
+    {
+        type            slip;
+    }
+
+    // kLowReWallFunction, not kqRWallFunction: the layer stack puts the first
+    // cell centre at y+ ~ 2.5, which is inside the buffer layer. The low-Re
+    // variant is valid across the whole y+ range, the pure high-Re form is not.
+    "(ground|wingGroup|wheelRotating|wheelGround)"
+    {
+        type            kLowReWallFunction;
+        value           uniform $kInlet;
+    }
+}
+
+
+// ************************************************************************* //

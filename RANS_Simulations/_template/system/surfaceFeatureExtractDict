@@ -1,0 +1,69 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  v2606                                 |
+|   \\  /    A nd           | Website:  www.openfoam.com                      |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    object      surfaceFeatureExtractDict;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+// Extracts the feature edges that snappyHexMesh snaps to explicitly
+// (explicitFeatureSnap in snappyHexMeshDict). Without this the blunt trailing
+// edge and the endplate edges get rounded off during snapping.
+//
+// Both STLs are vertex-welded (the wing has 1106 vertices for 1142 triangles),
+// so dihedral angles are well defined and includedAngle does the right thing.
+
+wing.stl
+{
+    extractionMethod    extractFromSurface;
+
+    extractFromSurfaceCoeffs
+    {
+        // Mark an edge when the angle between the two adjacent face normals
+        // is sharper than (180 - includedAngle) = 30 deg.
+        //
+        // This picks up:
+        //   - the two edges of the 0.5 mm blunt trailing edge
+        //   - the endplate leading/trailing/top/bottom edges
+        //   - the endplate-to-wing junction
+        // and leaves the smooth suction/pressure surfaces alone.
+        includedAngle   150;
+    }
+
+    subsetFeatures
+    {
+        nonManifoldEdges    no;
+        openEdges           yes;
+    }
+
+    writeObj            yes;
+}
+
+wheel.stl
+{
+    extractionMethod    extractFromSurface;
+
+    extractFromSurfaceCoeffs
+    {
+        includedAngle   150;
+    }
+
+    subsetFeatures
+    {
+        nonManifoldEdges    no;
+        openEdges           yes;
+    }
+
+    writeObj            yes;
+}
+
+
+// ************************************************************************* //

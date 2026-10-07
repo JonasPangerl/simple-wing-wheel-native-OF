@@ -1,0 +1,125 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  v2606                                 |
+|   \\  /    A nd           | Website:  www.openfoam.com                      |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    object      blockMeshDict;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+// Background mesh for the wing+wheel half-car domain.
+//
+// Everything in this project is in METRES. The wing/wheel STLs come out of the
+// geometry generator in millimetres and are scaled by 0.001 in Allmesh before
+// snappyHexMesh ever sees them.
+//
+// Domain (metres), chord c = 0.075:
+//   x  -0.712500 .. 1.181250   =  -9.50c .. 15.75c   (length 1.893750)
+//   y   0.000000 .. 0.675000   =   0.00c ..  9.00c   (half model, y=0 symmetry)
+//   z   0.000000 .. 0.637500   =   0.00c ..  8.50c   (z=0 is the ground)
+//
+// Base cell is a cube of 0.01875 m = 18.75 mm = 0.25c, which divides all three
+// extents exactly:
+//   1.893750 / 0.01875 = 101
+//   0.675000 / 0.01875 =  36
+//   0.637500 / 0.01875 =  34
+// -> 101 x 36 x 34 = 123 624 base cells.
+//
+// Keeping the base cell cubic matters: every snappyHexMesh refinement level
+// halves the edge, so level n has a cell size of 0.01875 / 2^n:
+//   L2 4.688 mm   L3 2.344 mm   L4 1.172 mm
+//   L5 0.586 mm   L6 0.293 mm   L7 0.146 mm
+
+scale   1;
+
+xMin    -0.712500;
+xMax     1.181250;
+yMin     0.000000;
+yMax     0.675000;
+zMin     0.000000;
+zMax     0.637500;
+
+nx      101;
+ny      36;
+nz      34;
+
+vertices
+(
+    ($xMin $yMin $zMin)   // 0
+    ($xMax $yMin $zMin)   // 1
+    ($xMax $yMax $zMin)   // 2
+    ($xMin $yMax $zMin)   // 3
+    ($xMin $yMin $zMax)   // 4
+    ($xMax $yMin $zMax)   // 5
+    ($xMax $yMax $zMax)   // 6
+    ($xMin $yMax $zMax)   // 7
+);
+
+blocks
+(
+    hex (0 1 2 3 4 5 6 7) ($nx $ny $nz) simpleGrading (1 1 1)
+);
+
+edges
+(
+);
+
+boundary
+(
+    inlet
+    {
+        type            patch;
+        faces           ((0 4 7 3));
+    }
+
+    outlet
+    {
+        type            patch;
+        faces           ((1 2 6 5));
+    }
+
+    // y = 0 is the half-car symmetry plane
+    symmetry
+    {
+        type            symmetry;
+        faces           ((0 1 5 4));
+    }
+
+    // Outboard tunnel wall, frictionless (slip U in 0.orig).
+    // Deliberately 'patch' and not 'wall': a wall here would be picked up by
+    // the meshWave wall-distance calculation that kOmegaSST feeds on, and
+    // would show up in the force integration groups.
+    side
+    {
+        type            patch;
+        faces           ((2 3 7 6));
+    }
+
+    // Moving ground: translates downstream at the freestream speed
+    ground
+    {
+        type            wall;
+        faces           ((0 3 2 1));
+    }
+
+    // Tunnel roof, frictionless (slip) - same reasoning as 'side'
+    sky
+    {
+        type            patch;
+        faces           ((4 5 6 7));
+    }
+);
+
+mergePatchPairs
+(
+);
+
+
+// ************************************************************************* //

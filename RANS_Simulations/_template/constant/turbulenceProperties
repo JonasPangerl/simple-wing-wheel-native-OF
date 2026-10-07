@@ -1,0 +1,40 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  v2606                                 |
+|   \\  /    A nd           | Website:  www.openfoam.com                      |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    object      turbulenceProperties;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+// The HELYX setup used kOmegaSSTawtSM, an Engys model with adaptive wall
+// treatment, a Menter-Smirnov curvature correction and a Rumsey separation
+// fix. None of that exists in native OpenFOAM, so this is plain kOmegaSST.
+//
+// The two consequences to be aware of when comparing against the old results:
+//   - no curvature correction, so the endplate and wheel vortex cores will
+//     diffuse somewhat faster
+//   - no separation fix, so separation onset on the suction side may differ
+// The adaptive wall treatment is the one piece that IS reproduced, via the
+// continuous all-y+ wall functions in 0.orig (see docs/07_case_reference.md).
+
+simulationType  RAS;
+
+RAS
+{
+    RASModel        kOmegaSST;
+
+    turbulence      on;
+
+    printCoeffs     on;
+}
+
+
+// ************************************************************************* //
