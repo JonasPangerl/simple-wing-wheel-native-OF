@@ -52,14 +52,25 @@ WHEEL_STL="$(unquote "$(caseParam wheelSTL)")"
 [ -n "$WING_STL" ]  || die "wingSTL is not set in include/caseParameters"
 [ -n "$WHEEL_STL" ] || die "wheelSTL is not set in include/caseParameters"
 
-WING_SRC="${GEOM_DIR}/wings/${WING_STL}"
-WHEEL_SRC="${GEOM_DIR}/wheels/${WHEEL_STL}"
+# Accept either the plain STL the generator writes, or a gzipped one.
+# OpenFOAM reads .stl.gz natively and keeps the solid/region names, which is
+# how the repository can ship the baseline wheel: 38.6 MB plain, 4.7 MB
+# gzipped, and snappyHexMeshDict still sees all four wheel regions.
+resolve_stl() {
+    local path="$1"
+    if   [ -f "$path" ];        then printf '%s' "$path"
+    elif [ -f "${path}.gz" ];   then printf '%s' "${path}.gz"
+    fi
+}
 
-if [ ! -f "$WING_SRC" ] || [ ! -f "$WHEEL_SRC" ]; then
-    [ -f "$WING_SRC" ]  || echo "  missing: $WING_SRC"  >&2
-    [ -f "$WHEEL_SRC" ] || echo "  missing: $WHEEL_SRC" >&2
+WING_SRC="$(resolve_stl "${GEOM_DIR}/wings/${WING_STL}")"
+WHEEL_SRC="$(resolve_stl "${GEOM_DIR}/wheels/${WHEEL_STL}")"
+
+if [ -z "$WING_SRC" ] || [ -z "$WHEEL_SRC" ]; then
+    [ -n "$WING_SRC" ]  || echo "  missing: ${GEOM_DIR}/wings/${WING_STL}[.gz]"  >&2
+    [ -n "$WHEEL_SRC" ] || echo "  missing: ${GEOM_DIR}/wheels/${WHEEL_STL}[.gz]" >&2
     die "geometry not found. Generate it first:
-       cd ${PROJECT_ROOT}/Diasinos_Geometry_Generator && python -m geometry_generator.generate
+       cd ${PROJECT_ROOT}/Diasinos_Geometry_Generator && python3 -m geometry_generator.generate
      See docs/02_geometry.md."
 fi
 

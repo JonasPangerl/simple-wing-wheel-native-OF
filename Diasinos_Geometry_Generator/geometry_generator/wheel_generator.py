@@ -89,8 +89,10 @@ class WheelGenerator:
         y_inner = y_center - tread_width / 2
         y_outer = y_center + tread_width / 2
         
-        # Number of circumferential segments
-        n_circ = 180  # 2-degree increments for fine tessellation
+        # Circumferential segments. Must be fine enough that the facet is
+        # not coarser than the CFD cell, or snappyHexMesh snaps to the
+        # facets and the prism layers get squeezed. See config.py.
+        n_circ = self.config.wheel_circumferential_segments
         
         # Generate circumferential points
         angles = np.linspace(0, 2 * np.pi, n_circ + 1)[:-1]  # Exclude duplicate at 2*pi
@@ -147,9 +149,9 @@ class WheelGenerator:
         y_shoulder_inner = y_center - tread_width / 2
         y_shoulder_outer = y_center + tread_width / 2
         
-        # Number of segments
-        n_circ = 180   # Circumferential (around wheel) - 2-degree increments
-        n_shoulder = 24  # Across shoulder curve (quarter circle) - finer tessellation
+        # Number of segments (see config.py for how these are chosen)
+        n_circ = self.config.wheel_circumferential_segments
+        n_shoulder = self.config.wheel_shoulder_segments
         
         # Generate angles
         circ_angles = np.linspace(0, 2 * np.pi, n_circ + 1)[:-1]
@@ -248,8 +250,8 @@ class WheelGenerator:
         y_inner = y_center - width / 2
         y_outer = y_center + width / 2
         
-        # Number of segments
-        n_circ = 180  # Match tread tessellation
+        # Number of segments - must match the tread tessellation
+        n_circ = self.config.wheel_circumferential_segments
         n_radial = 16  # More radial segments for better mesh
         
         circ_angles = np.linspace(0, 2 * np.pi, n_circ + 1)[:-1]

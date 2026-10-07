@@ -16,6 +16,16 @@ chord: 75.0                     # mm - wing chord length (reference dimension)
 plinth_cut_height: 0.5          # mm - height above ground to cut wheel for plinth
 plinth_depth: 6.0               # mm - how far plinth extends below ground (z=0)
 
+# Wheel tessellation
+# The facet must not be coarser than the CFD cell, or snappyHexMesh snaps to
+# the facets and the prism layers on the tread get squeezed by them.
+# Circumference at R = 43.875 mm is 275.7 mm, RANS cell on the wheel is
+# 0.293 mm (level 6):
+#     900 -> 0.31 mm facets   (matched to the cell)
+#     180 -> 1.53 mm facets   (the original value; tread layer coverage 63 %)
+wheel_circumferential_segments: 900
+wheel_shoulder_segments: 24     # 0.33 mm across the shoulder arc, already matched
+
 # Airfoil data
 airfoil_csv: Documents/naca4412_75mmCord.csv
 

@@ -1,0 +1,477 @@
+% ===========================================================================
+% Wing + Wheel RANS - setup and verification report
+%
+% Build:  ./build.sh          (regenerates figures, then runs latexmk)
+%         latexmk -pdf report  (text only, reuse existing figures)
+%
+% Every number comes from generated/case_data.tex, which is written by
+% scripts/make_tex_data.py out of the case's results.json and logs. Nothing
+% in here is typed by hand.
+% ===========================================================================
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage[margin=22mm]{geometry}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{amsmath}
+% siunitx is not in every TeX installation, and this report needs almost
+% nothing from it. Minimal stand-ins, so no extra package is required.
+\providecommand{\si}[1]{\ensuremath{\mathrm{#1}}}
+\providecommand{\SI}[2]{\ensuremath{#1\,\mathrm{#2}}}
+\providecommand{\sisetup}[1]{}
+\usepackage{xcolor}
+\usepackage{enumitem}
+\usepackage{caption}
+\usepackage[hidelinks]{hyperref}
+\usepackage{fancyhdr}
+
+\setlist[itemize]{topsep=2pt, itemsep=1pt, parsep=0pt, leftmargin=*}
+\captionsetup{font=small, labelfont=bf, skip=4pt}
+\graphicspath{{figures/}}
+
+\pagestyle{fancy}
+\fancyhf{}
+\lhead{\small Wing + Wheel RANS, OpenFOAM v\ofApi}
+\rhead{\small \caseName}
+\cfoot{\small \thepage}
+\renewcommand{\headrulewidth}{0.3pt}
+
+\definecolor{warn}{RGB}{176,58,46}
+\definecolor{okc}{RGB}{30,110,60}
+\newcommand{\ok}[1]{\textcolor{okc}{#1}}
+\newcommand{\bad}[1]{\textcolor{warn}{#1}}
+
+% Include a figure only if it exists, so a missing image never breaks the
+% build - it leaves a visible placeholder instead.
+\newcommand{\figOrNote}[4]{%
+  \begin{figure}[htbp]\centering
+  \IfFileExists{figures/#1.png}{\includegraphics[width=#2\linewidth]{#1}}%
+    {\fbox{\parbox{0.8\linewidth}{\centering\vspace{8mm}\textbf{%
+      \bad{figure \texttt{\detokenize{#1}.png} not generated}}\vspace{8mm}}}}%
+  \caption{#3}\label{fig:#4}
+  \end{figure}}
+
+\input{generated/case_data}
+
+\title{\vspace{-12mm}\textbf{Front wing in ground effect beside a rotating
+wheel}\\[2mm]
+\large Steady RANS setup and verification report\\[1mm]
+\normalsize OpenFOAM v\ofApi\ (native) \textbf{·} \texttt{snappyHexMesh} +
+\texttt{simpleFoam} \textbf{·} case \caseName}
+\author{}
+\date{}
+
+\begin{document}
+\maketitle
+\thispagestyle{fancy}
+\vspace{-10mm}
+
+% ===========================================================================
+\section{Case at a glance}
+
+\begin{center}\small
+\begin{tabular}{@{}llll@{}}
+\toprule
+\multicolumn{2}{@{}l}{\textbf{Configuration}} &
+\multicolumn{2}{l}{\textbf{Mesh}}\\
+\midrule
+wing half-span      & $S/c = \spanC$     & cells            & \nCells\\
+ride height         & $h/c = \heightC$   & background cells & \nBaseCells\\
+angle of attack     & \aoaDeg$^\circ$ & layer coverage & \layerCoverage\,\%\\
+wheel width         & $W/c = \widthC$    & \texttt{checkMesh} clean & \checkMeshOk\\
+\midrule
+\multicolumn{2}{@{}l}{\textbf{Flow}} &
+\multicolumn{2}{l}{\textbf{Cost, \npRanks\ MPI ranks}}\\
+\midrule
+freestream  & \Uinf\,\si{m/s}                  & meshing   & \meshMinutes\,min\\
+chord       & \chord\,\si{m}                   & solving   & \solveMinutes\,min\\
+$Re_c$      & \ReC                             & per iteration & \secPerIter\,s\\
+$\rho$      & \rhoInf\,\si{kg/m^3}             & iterations & \nIter\\
+$\nu$       & \nuInf\,\si{m^2/s}               & converged & \converged\\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\paragraph{Headline result.}
+Force \emph{coefficient-areas}, mean over the last 50 iterations.
+$A_{\mathrm{ref}} = \SI{1}{m^2}$ on purpose, so these are $C_L\!\cdot\!A$ and
+$C_D\!\cdot\!A$ in \si{m^2} --- the quantity the Diasinos papers tabulate.
+Negative lift is downforce.
+
+\begin{center}\small
+\begin{tabular}{@{}lrrr@{}}
+\toprule
+ & $C_L\!\cdot\!A$ [\si{m^2}] & $C_D\!\cdot\!A$ [\si{m^2}] &
+ spread of $C_L\!\cdot\!A$\\
+\midrule
+wing  & \clWing  & \cdWing  & \spreadWing\,\%\\
+wheel & \clWheel & \cdWheel & \spreadWheel\,\%\\
+total & \clTotal & \cdTotal & \spreadTotal\,\%\\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\noindent
+Mean $y^+$: wing \yplusWing, wheel \yplusWheel, maximum \yplusMax.
+
+% ===========================================================================
+\section{Software and reproducibility}
+
+\begin{itemize}
+\item \textbf{OpenFOAM v\ofApi} (ESI/OpenCFD), built from source. Native
+  only --- no commercial solver, no in-house libraries.
+\item Mesh \texttt{snappyHexMesh}, solve \texttt{simpleFoam} (segregated,
+  SIMPLEC), turbulence \texttt{kOmegaSST}.
+\item Geometry generated parametrically from the Diasinos specification;
+  420 configurations available.
+\item Everything else is \texttt{python3} standard library. No
+  \texttt{numpy}/\texttt{pandas} needed to run a case.
+\end{itemize}
+
+\paragraph{To reproduce this case.}
+\begin{verbatim}
+cp env/project.env.example env/project.env   # set OPENFOAM_BASHRC and NP
+cd Diasinos_Geometry_Generator && .venv/bin/python -m geometry_generator.generate
+cd ../RANS_Simulations
+python3 prepare_case.py --span 1.42 --height 0.13 --aoa 8 --width 0.63
+cd S1.42_h0.13_AOA8_W0.63 && ./Allrun
+\end{verbatim}
+
+% ===========================================================================
+\section{Geometry}
+
+\begin{itemize}
+\item Coordinate system: $x$ streamwise (wheel centre at $x=0$), $y$ spanwise
+  outboard, $z$ up with the ground at $z=0$. Half model, symmetry at $y=0$.
+\item Chord $c=\SI{75}{mm}$. Inverted NACA 4412, blunt trailing edge
+  \SI{0.5}{mm}. Wheel diameter $1.17c$, shoulder radius $0.067c$.
+\item \textbf{The generator writes millimetres}; everything in the
+  simulation is metres. \texttt{Allmesh} scales by 0.001 on the way in.
+\item The \emph{plinth} is a collar that deliberately pierces the ground
+  plane (down to $z=\SI{-6}{mm}$) so the contact patch is a clean cut
+  instead of a tangential singularity.
+\end{itemize}
+
+\figOrNote{geom_overview}{0.92}{Geometry and the ground plane. The wing sits
+in ground effect ahead of and inboard of the wheel; the plinth passes through
+the ground.}{geomov}
+
+\figOrNote{geom_front}{0.92}{Front view, looking downstream. The endplate
+(light blue) falls inside the wheel silhouette: at $S/c=\spanC$ and
+$W/c=\widthC$ the spanwise gap is $-0.45c$, i.e. wing and wheel
+overlap.}{geomfront}
+
+\figOrNote{geom_plan}{0.86}{Plan view. $y=0$ is the symmetry plane.}{geomplan}
+
+\begin{figure}[htbp]\centering
+\IfFileExists{figures/geom_wing_regions.png}
+  {\includegraphics[width=0.49\linewidth]{geom_wing_regions}}{}%
+\IfFileExists{figures/geom_wheel_regions.png}
+  {\includegraphics[width=0.49\linewidth]{geom_wheel_regions}}{}%
+\caption{Named STL regions. \texttt{snappyHexMeshDict} refers to these names
+directly to set refinement level and patch name, so renaming a region in the
+generator breaks the mesh setup.}\label{fig:regions}
+\end{figure}
+
+\paragraph{Known geometry limitations.}
+\begin{itemize}
+\item The wing is \textbf{prismatic}, extruded between two spanwise
+  stations. Geometrically exact for a constant section; it does mean the
+  triangles have a very high aspect ratio, which \texttt{surfaceCheck}
+  reports as poor quality. Not an error.
+\item \bad{Two duplicate triangles} on the endplate outer edge --- a defect
+  in the generator. Two facets out of 1142; \texttt{snappyHexMesh} tolerates
+  them. Reported by \texttt{Allmesh} and deliberately non-fatal.
+\item Both STLs consist of two disjoint parts (wing + endplate, wheel +
+  plinth), so \texttt{surfaceCheck} says ``not closed''. Expected: no
+  \texttt{mode inside} refinement region is attached to either body.
+\item Wheel tessellation was raised to 900 circumferential segments
+  (\SI{0.31}{mm} facets) to match the \SI{0.293}{mm} cell. At the original
+  180 segments the facets were \SI{1.53}{mm} and the layers on the tread were
+  squeezed by them.
+\end{itemize}
+
+% ===========================================================================
+\section{Domain and boundary conditions}
+
+\figOrNote{geom_domain}{0.92}{Computational domain,
+$\SI{1.894}{m}\times\SI{0.675}{m}\times\SI{0.638}{m}
+= 25.3c\times 9c\times 8.5c$. Grey: moving ground. Yellow: symmetry
+plane.}{domain}
+
+\begin{center}\small
+\begin{tabular}{@{}lllll@{}}
+\toprule
+patch / group & type & $U$ & $p$ & $k,\omega,\nu_t$\\
+\midrule
+\texttt{inlet}  & patch & \texttt{fixedValue} (10\,0\,0) & \texttt{zeroGradient} & turbulent inlet\\
+\texttt{outlet} & patch & \texttt{pressureInletOutletVelocity} & \texttt{fixedValue} 0 & \texttt{inletOutlet}\\
+\texttt{symmetry} & symmetry & \texttt{symmetry} & \texttt{symmetry} & \texttt{symmetry}\\
+\texttt{side}, \texttt{sky} & patch & \texttt{slip} & \texttt{slip} & \texttt{slip} / \texttt{calculated}\\
+\texttt{ground} & wall & \texttt{fixedValue} (10\,0\,0) & \texttt{zeroGradient} & wall functions\\
+\texttt{wingGroup} & wall & \texttt{noSlip} & \texttt{zeroGradient} & wall functions\\
+\texttt{wheelRotating} & wall & \texttt{rotatingWallVelocity} & \texttt{zeroGradient} & wall functions\\
+\texttt{wheelGround} & wall & \texttt{fixedValue} (10\,0\,0) & \texttt{zeroGradient} & wall functions\\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\begin{itemize}
+\item \textbf{Rolling road}: the belt translates downstream at the
+  freestream speed, so the ground is at rest relative to the far-field air.
+\item \textbf{Rotating wheel}: $\omega = \SI{-227.92}{rad/s}$ about
+  $(0\,1\,0)$ through $(0,0,\SI{0.043875}{m})$.
+  \texttt{rotatingWallVelocity} imposes $\omega\times r$ without moving the
+  mesh --- correct for steady RANS. The sign follows from requiring the
+  contact point to move with the belt:
+  $\omega_y = -U_\infty/R$. Reversing it spins the wheel backwards and still
+  converges happily.
+\item The \texttt{wheel-plinth} patch is in \texttt{wheelGround}, not
+  \texttt{wheelRotating}: it is the collar through the ground and moves with
+  the belt.
+\item \texttt{side} and \texttt{sky} are \texttt{patch}, not \texttt{wall},
+  on purpose --- a wall there would enter the \texttt{meshWave} wall-distance
+  field that \texttt{kOmegaSST} blends on, and would appear in the force
+  groups.
+\end{itemize}
+
+% ===========================================================================
+\section{Mesh}
+
+\begin{itemize}
+\item Background: $101\times36\times34$ \textbf{cubic} cells of
+  \SI{18.75}{mm} ($=0.25c$), \nBaseCells\ cells. Cubic matters: each
+  refinement level halves the edge, so the level-to-size table only holds
+  from a cube.
+\item Level sizes: L4 \SI{1.17}{mm}, L5 \SI{0.586}{mm}, L6 \SI{0.293}{mm},
+  L7 \SI{0.146}{mm}.
+\item Per-region surface levels, distance refinement around both bodies
+  (L5 within \SI{15}{mm}, L4 within \SI{30}{mm}), and nine
+  \texttt{searchableBox} zones.
+\item Final mesh \nCells\ cells.
+\end{itemize}
+
+\begin{center}\small
+\begin{tabular}{@{}lrr@{}}
+\toprule
+refinement level & cells & share [\%]\\
+\midrule
+\leveltable
+\bottomrule
+\end{tabular}
+\end{center}
+
+\figOrNote{mesh_slice_y_overview}{0.95}{Mesh on a spanwise slice through the
+wheel centre. The nested refinement zones and the wake box are
+visible.}{meshy}
+
+\figOrNote{mesh_slice_y_gap}{0.95}{Same slice, wing trailing edge to wheel
+front --- the region the whole study is about.}{meshgap}
+
+\figOrNote{mesh_slice_x_overview}{0.86}{Slice through the wheel axis
+($x=0$). Looking downstream, so $y$ increases to the left.}{meshx}
+
+\figOrNote{mesh_slice_z}{0.86}{Mesh \SI{1.2}{mm} above the belt. The
+contact-patch refinement box is the fine square under the
+wheel.}{meshz}
+
+\subsection{Prism layers}
+
+Four layers from \SI{0.14}{mm} with expansion 1.3 (total \SI{0.87}{mm}) on
+wing and wheel, three from \SI{0.25}{mm} on the ground. This targets
+$y^+\approx 2.5$, which is why the wall functions are the all-$y^+$ variants.
+
+\figOrNote{mesh_layers_tread}{0.80}{Wheel tread at the top. Prism layers on
+the \SI{0.31}{mm}-tessellated tread.}{laytread}
+
+\figOrNote{mesh_layers_tread_front}{0.80}{Wheel tread, upstream
+face.}{laytreadf}
+
+\figOrNote{mesh_layers_shoulder}{0.80}{Wheel shoulder, inboard. The
+\SI{5}{mm} shoulder radius is the tightest convex curvature on the
+wheel.}{layshoulder}
+
+\figOrNote{mesh_layers_contact}{0.80}{Contact patch. The plinth cuts the
+ground plane at $z=0$; this is where the layers fight each other.}{laycontact}
+
+\figOrNote{mesh_wing_te}{0.80}{Blunt trailing edge, \SI{0.5}{mm} thick. No
+prism layers --- see below.}{laywingte}
+
+\begin{center}\small
+\begin{tabular}{@{}lrrrr@{}}
+\toprule
+patch & faces & layers wanted & layers built & thickness [\%]\\
+\midrule
+\layertable
+\bottomrule
+\end{tabular}
+\end{center}
+
+\paragraph{Reading the layer table.}
+\begin{itemize}
+\item Overall coverage \layerCoverage\,\%.
+\item The patches in \textbf{bold} got \bad{no layers at all}. These are
+  \texttt{wing-TE}, \texttt{wing-endplate\_TE} and \texttt{wheel-plinth} ---
+  sharp convex edges and the plinth/ground intersection. Asking for fewer and
+  thinner layers does not change it: the limit is topology, not thickness.
+\item \textbf{This is accepted.} \texttt{snappyHexMesh} is known for
+  incomplete layer coverage at sharp edges and where two layered surfaces
+  meet. All three patches sit in L7 cells (\SI{0.146}{mm}), so the near-wall
+  spacing is comparable to the layered regions anyway.
+\item The number to judge the near-wall treatment by is $y^+$
+  (section~\ref{sec:results}), not the layer count.
+\end{itemize}
+
+\subsection{Mesh quality}
+
+Quality limits are deliberately relaxed (\texttt{maxNonOrtho} 75,
+\texttt{maxInternalSkewness} 6, \texttt{minTetQuality} $-10^{30}$), carried
+over from the previous HELYX setup. Enforcing a positive tet quality with
+absolute layer thicknesses on curved surfaces costs most of the layer
+coverage.
+
+\texttt{checkMesh} clean: \textbf{\checkMeshOk} (\nCheckMeshFail\ findings).
+\begin{itemize}
+\checkmeshlist
+\end{itemize}
+
+\noindent
+These are the expected consequence of the relaxed limits. The solver runs
+stably on this mesh; if it ever diverges, \texttt{meshQualityDict} is the
+first thing to question.
+
+% ===========================================================================
+\section{Physics and numerics}
+
+\begin{center}\small
+\begin{tabular}{@{}ll@{}}
+\toprule
+turbulence model & \texttt{kOmegaSST}\\
+$\nu_t$ wall function & \texttt{nutUSpaldingWallFunction} (continuous all $y^+$)\\
+$k$ wall function & \texttt{kLowReWallFunction}\\
+$\omega$ wall function & \texttt{omegaWallFunction}\\
+\midrule
+momentum convection & \texttt{bounded Gauss linearUpwindV grad(U)}\\
+turbulence convection & \texttt{bounded Gauss upwind} (first order, deliberate)\\
+gradients & \texttt{cellLimited Gauss linear 1}\\
+laplacian & \texttt{Gauss linear corrected}\\
+wall distance & \texttt{meshWave}\\
+\midrule
+pressure--velocity & SIMPLEC (\texttt{consistent yes})\\
+$p$ solver & GAMG, \texttt{tolerance} $10^{-7}$, \texttt{relTol} 0.01\\
+$U,k,\omega$ & \texttt{smoothSolver} GaussSeidel\\
+relaxation & $U$ 0.9, $k$ and $\omega$ 0.7\\
+\texttt{residualControl} & $p$, $U$: $10^{-5}$; $k$, $\omega$: $10^{-4}$\\
+initialisation & \texttt{potentialFoam}, divergence-free start\\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\paragraph{Turbulence convection is first order on purpose.} Second-order
+$k$/$\omega$ transport is the usual reason residuals stall on a mesh of this
+kind, and the effect on the integrated forces is small. Momentum convection
+is second order.
+
+\paragraph{Differences against the previous HELYX setup.} Relevant whenever
+the two are compared:
+\begin{itemize}
+\item \bad{No curvature correction} (HELYX used Menter--Smirnov). The
+  endplate and wheel vortex cores will diffuse somewhat faster.
+\item \bad{No separation fix} (HELYX used the Rumsey form). Separation onset
+  on the suction side may differ.
+\item The adaptive wall treatment \emph{is} reproduced, by the all-$y^+$ wall
+  functions above.
+\item HELYX ran a coupled solver pseudo-transiently; this is segregated and
+  steady, so iteration counts are not comparable.
+\end{itemize}
+
+% ===========================================================================
+\section{Convergence}
+
+\figOrNote{conv_residuals}{0.95}{Initial residuals per SIMPLE iteration, with
+the \texttt{residualControl} thresholds marked.}{convres}
+
+\figOrNote{conv_forces}{0.95}{Force history. The grey band is the window
+averaged for the reported result.}{convf}
+
+\figOrNote{conv_forces_zoom}{0.95}{Settling of the total $C_L\!\cdot\!A$ over
+the final iterations.}{convfz}
+
+\paragraph{How to judge this.}
+\begin{itemize}
+\item \texttt{residualControl} satisfied: \textbf{\converged}.
+\item Final initial residuals: $p$ \resp, $U_x$ \resUx, $U_z$ \resUz,
+  $k$ \resk, $\omega$ \resomega.
+\item \textbf{The force spread matters more than the residual.} A converged
+  residual with $C_L\!\cdot\!A$ still swinging by several percent means an
+  unsteady flow being forced into a steady solve. Here the total spread over
+  the averaging window is \spreadTotal\,\%.
+\item Residual \emph{fields} are written as well, so a stalled case can be
+  opened in ParaView to see \emph{where} it will not settle.
+\end{itemize}
+
+% ===========================================================================
+\section{Results}\label{sec:results}
+
+\figOrNote{res_cp_wing}{0.92}{Pressure coefficient on the wing suction
+side.}{rescp}
+
+\figOrNote{res_cpt_slice}{0.95}{Total pressure coefficient on streamwise
+slices --- vortex cores and wake losses.}{rescpt}
+
+\figOrNote{res_yplus}{0.92}{$y^+$ on the wall patches. The layer stack
+targets $y^+\approx2.5$; the all-$y^+$ wall functions stay valid well beyond
+that, but values far above 30 mean the near-wall solution should not be
+trusted.}{resyplus}
+
+\figOrNote{res_q}{0.92}{Q-criterion isosurface, coloured by streamwise
+vorticity --- the endplate and wheel vortex systems.}{resq}
+
+% ===========================================================================
+\section{Assessment}
+
+\paragraph{What supports trusting these numbers.}
+\begin{itemize}
+\item \ok{Background mesh exactly as designed} (\nBaseCells\ cells), cubic,
+  dividing the domain without remainder.
+\item \ok{Refinement reproduces the previous validated HELYX setup}
+  level for level, and the final cell count agrees with it closely.
+\item \ok{Patch groups resolve correctly} ---
+  \texttt{patchSummary} confirms \texttt{noSlip} on the wing,
+  \texttt{rotatingWallVelocity} on the wheel and the belt velocity on the
+  plinth.
+\item \ok{Wheel rotation sign verified} analytically against the belt speed.
+\item \ok{Divergence-free initialisation} via \texttt{potentialFoam}.
+\item \ok{$y^+$ in the design range} of the chosen wall functions.
+\end{itemize}
+
+\paragraph{What to be careful about.}
+\begin{itemize}
+\item \bad{No curvature correction and no separation fix} relative to
+  HELYX. Expect faster vortex diffusion and possibly different separation
+  onset.
+\item \bad{Relaxed mesh quality limits} leave genuinely poor cells in the
+  mesh (\texttt{minTetQuality} disabled). Accepted in exchange for layer
+  coverage.
+\item \bad{Three patches without prism layers}, see section~5.
+\item \bad{Two duplicate triangles} in the wing STL.
+\item \bad{Steady RANS on a flow that may not be steady.} At high angle of
+  attack or low ride height, check the force spread before quoting a number.
+\item The two local refinement boxes that stand in for HELYX's per-region
+  distance refinement are \bad{positioned for this geometry} and do not
+  follow the parameters. Re-check them before extending the sweep.
+\end{itemize}
+
+\vfill
+\noindent\footnotesize
+Generated from \texttt{\caseName}. Figures by \texttt{pvbatch}
+(ParaView) and \texttt{matplotlib}; numbers by
+\texttt{report/scripts/make\_tex\_data.py} from the case's
+\texttt{results.json} and solver logs.
+
+\end{document}

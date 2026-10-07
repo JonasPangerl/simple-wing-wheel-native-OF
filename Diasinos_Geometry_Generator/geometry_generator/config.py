@@ -58,6 +58,20 @@ class GeometryConfig:
     # Plinth parameters (absolute mm)
     plinth_cut_height: float = 0.5      # mm above ground to intersect wheel
     plinth_depth: float = 6.0           # mm below ground (z=0)
+
+    # --- Wheel tessellation ------------------------------------------------
+    # Facet size has to be at least as fine as the CFD cell, otherwise
+    # snappyHexMesh snaps to the facets and the prism layers get squeezed by
+    # them. The RANS setup uses a 0.293 mm cell on the wheel (level 6), and
+    # the circumference at R = 43.875 mm is 275.7 mm, so:
+    #     900 segments -> 0.306 mm facets
+    # The original value of 180 gave 1.53 mm, five times coarser than the
+    # cell, which cost most of the layer coverage on the tread.
+    wheel_circumferential_segments: int = 900
+
+    # Across the shoulder quarter-circle (R = 0.067c = 5.0 mm, arc 7.9 mm).
+    # 24 already gives 0.33 mm, which matches the cell size.
+    wheel_shoulder_segments: int = 24
     
     # Airfoil data path
     airfoil_csv: str = "Documents/naca4412_75mmCord.csv"
@@ -157,6 +171,12 @@ class GeometryConfig:
             config.plinth_cut_height = float(data['plinth_cut_height'])
         if 'plinth_depth' in data:
             config.plinth_depth = float(data['plinth_depth'])
+        if 'wheel_circumferential_segments' in data:
+            config.wheel_circumferential_segments = int(
+                data['wheel_circumferential_segments'])
+        if 'wheel_shoulder_segments' in data:
+            config.wheel_shoulder_segments = int(
+                data['wheel_shoulder_segments'])
         if 'airfoil_csv' in data:
             config.airfoil_csv = data['airfoil_csv']
         if 'output_dir' in data:

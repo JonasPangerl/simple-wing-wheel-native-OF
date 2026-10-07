@@ -123,11 +123,17 @@ def main():
     wing_path = geom / "wings" / wing_stl
     wheel_path = geom / "wheels" / wheel_stl
 
-    missing = [p for p in (wing_path, wheel_path) if not p.is_file()]
+    # A gzipped STL is equally usable: OpenFOAM reads .stl.gz and keeps the
+    # region names, which is how the baseline wheel is shipped (4.7 MB
+    # instead of 38.6 MB).
+    def present(path):
+        return path.is_file() or path.with_suffix(path.suffix + ".gz").is_file()
+
+    missing = [p for p in (wing_path, wheel_path) if not present(p)]
     if missing:
         sys.stderr.write("ERROR: geometry not found:\n")
         for p in missing:
-            sys.stderr.write("         {}\n".format(p))
+            sys.stderr.write("         {}[.gz]\n".format(p))
         sys.stderr.write(
             "\n       Generate it first:\n"
             "         cd {}\n"
