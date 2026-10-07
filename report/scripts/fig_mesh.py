@@ -150,6 +150,26 @@ def main():
     save(v, args.out, "mesh_layers_shoulder")
 
     # =====================================================================
+    # 3b. Streamwise stations through the wing - the endplate vortex region
+    # =====================================================================
+    # x = -95 mm cuts the wing and the full endplate; x = -48 mm sits just
+    # behind the endplate trailing edge (-50.4 mm), where the bottom-edge
+    # vortex is shed. These are the views that show whether the distance
+    # refinement on the shedding edge is doing its job.
+    for xst, tag, note in (
+        (-0.095, "wing_mid", "x = -95 mm, through the wing and endplate"),
+        (-0.048, "ep_wake", "x = -48 mm, just behind the endplate trailing "
+                            "edge - the vortex is shed here"),
+    ):
+        s = mesh_slice(r, (xst, 0, 0), (1, 0, 0), "slice_x_%s" % tag)
+        hide_all(v)
+        show_mesh(s, v, lw=0.6)
+        look_at(v, (xst, 0.062, 0.028), (1, 0, 0), (0, 0, 1), 0.032)
+        text_label(v, "mesh, %s.  looking downstream, y grows to the left"
+                   % note)
+        save(v, args.out, "mesh_slice_x_" + tag)
+
+    # =====================================================================
     # 4. Wing trailing edge, the blunt 0.5 mm one
     # =====================================================================
     print("slice y = 0.05 (wing mid-span)", flush=True)

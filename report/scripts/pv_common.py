@@ -122,10 +122,17 @@ def add_scalar_bar(view, lut, title, fmt="%.2f"):
     bar.LabelFontSize = 15
     bar.RangeLabelFormat = fmt
     bar.LabelFormat = fmt
-    bar.ScalarBarLength = 0.33
-    bar.ScalarBarThickness = 14
-    bar.Orientation = "Vertical"
-    bar.WindowLocation = "Lower Right Corner"
+    # Horizontal along the bottom: a vertical bar at the right edge puts the
+    # title on its side and is hard to read once the PNG is scaled into the
+    # report.
+    bar.ScalarBarLength = 0.45
+    bar.ScalarBarThickness = 22
+    bar.Orientation = "Horizontal"
+    bar.WindowLocation = "Any Location"
+    bar.Position = [0.28, 0.025]
+    bar.TitleFontSize = 22
+    bar.LabelFontSize = 18
+    bar.TextPosition = "Ticks left/bottom, annotations right/top"
     return bar
 
 
@@ -227,12 +234,32 @@ def open_foam_case(case_dir, decomposed=True, regions=("internalMesh",),
 
     r = OpenFOAMReader(registrationName="case", FileName=foam)
     r.CaseType = "Decomposed Case" if decomposed else "Reconstructed Case"
+
+    # Pull the metadata first. Without this the reader reports no CellArrays
+    # and only time 0, because the available-array and timestep lists are
+    # only populated by an information update.
+    r.UpdatePipelineInformation()
+
     r.MeshRegions = list(regions)
     if cell_arrays is not None:
         r.CellArrays = list(cell_arrays)
     r.Createcelltopointfiltereddata = 1
+
+    r.UpdatePipelineInformation()
     r.UpdatePipeline()
     return r
+
+
+def times_of(reader):
+    """Timestep values as a plain sorted list of floats.
+
+    reader.TimestepValues is a VectorProperty, not a list: float() on it
+    raises, and isinstance(..., list) is False.
+    """
+    try:
+        return sorted(float(t) for t in reader.TimestepValues)
+    except TypeError:
+        return []
 
 
 def available(reader):

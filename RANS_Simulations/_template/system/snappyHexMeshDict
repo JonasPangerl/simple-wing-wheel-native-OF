@@ -100,13 +100,6 @@ geometry
         max     ( 0.300  0.170  0.130);
     }
 
-    L5-gap-underwing
-    {
-        type    searchableBox;
-        min     (-0.150  0.060  0.000);
-        max     ( 0.060  0.130  0.060);
-    }
-
     L5-vortex-inboard
     {
         type    searchableBox;
@@ -121,30 +114,36 @@ geometry
         max     ( 0.200  0.145  0.050);
     }
 
-    // Local zones that replace per-region distance refinement, which
-    // snappyHexMesh does not support (HELYX did this on the wing-ep-bottom
-    // and wheel-plinth surfaces individually).
+    // The endplate bottom edge as its own geometry entry, so it can carry
+    // DISTANCE refinement. snappyHexMesh cannot do distance refinement on
+    // one region of a multi-region surface, but it can on a separate file,
+    // and Allmesh extracts this one with surfaceSplitByPatch.
     //
-    // Endplate bottom edge: HELYX refined to L6 within 3 mm of that surface.
-    L6-endplate-bottom-edge
+    // This is what makes the endplate vortex refinement follow the geometry:
+    // it tracks the shedding edge for any span, ride height or angle of
+    // attack, where a fixed box does not. Only the 91 x 3 mm bottom strip is
+    // extracted - a distance shell around the whole endplate would be a
+    // great deal of mesh for no benefit.
+    //
+    // Used ONLY in refinementRegions below, never in refinementSurfaces:
+    // the patch itself is already created from wing.stl.
+    endplate_bottom.stl
     {
-        type    searchableBox;
-        min     (-0.145  0.095  0.004);
-        max     (-0.048  0.112  0.016);
+        type        triSurfaceMesh;
+        name        endplateBottomEdge;
     }
 
-    // Wheel contact patch: HELYX refined to L7 within 5 mm of the plinth,
-    // i.e. a thin shell following the surface. A box fills that volume
-    // solid, so its size matters a great deal at L7 (0.146 mm cells).
+    // Wheel contact patch. L6, not L7: the plinth surface level is (6 7),
+    // so the cells at the wall are L6 at their coarsest, and a box finer
+    // than the wall only adds cells and a worse transition - it cannot
+    // improve a resolution the wall does not have. The plinth also carries
+    // no prism layers.
     //
     // Sized to the geometric contact zone, not to the wheel: with
     // R = 43.875 mm the wheel surface is below z = 4 mm only for
-    // |x| <= sqrt(R^2 - (R-4)^2) = 18.4 mm. The first version of this box
-    // was 100 x 52 x 8 mm and produced 10.07 M cells at L7 - 35 % of the
-    // whole mesh, and the single reason the mesh came out at 28.5 M cells
-    // instead of the 18.7 M the HELYX setup produced. This version costs
-    // about 2.4 M cells.
-    L7-contact-patch
+    // |x| <= sqrt(R^2 - (R-4)^2) = 18.4 mm. An earlier 100 x 52 x 8 mm
+    // version at L7 produced 10.07 M cells, 35 % of the whole mesh.
+    L6-contact-patch
     {
         type    searchableBox;
         min     (-0.018  0.070  0.000);
@@ -263,11 +262,23 @@ castellatedMeshControls
         L3-body                 { mode inside; levels ((1E15 3)); }
         L4-neargeom             { mode inside; levels ((1E15 4)); }
         L4-wake                 { mode inside; levels ((1E15 4)); }
-        L5-gap-underwing        { mode inside; levels ((1E15 5)); }
         L5-vortex-inboard       { mode inside; levels ((1E15 5)); }
         L5-vortex-outboard      { mode inside; levels ((1E15 5)); }
-        L6-endplate-bottom-edge { mode inside; levels ((1E15 6)); }
-        L7-contact-patch        { mode inside; levels ((1E15 7)); }
+        L6-contact-patch        { mode inside; levels ((1E15 6)); }
+
+        // The endplate bottom edge sheds the dominant vortex of this case.
+        // Distance refinement off the edge itself, so it follows the
+        // geometry across the parameter sweep:
+        //   L6 within 6 mm   - the shedding region
+        //   L5 within 30 mm  - the near wake of the edge
+        // The downstream TRAJECTORY of that vortex is covered by the
+        // L5-vortex-inboard/outboard boxes above; this entry only resolves
+        // where it is created.
+        endplateBottomEdge
+        {
+            mode    distance;
+            levels  ((0.006 6) (0.030 5));
+        }
     }
 
     // A point in the fluid, well clear of any geometry or cell face. The

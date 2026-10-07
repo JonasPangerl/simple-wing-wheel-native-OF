@@ -91,6 +91,10 @@ RANS_Simulations/
 
 ## Conventions
 
+- **`renumberMesh` runs before any fields exist**, with `-no-fields`.
+  Renumbering a mesh whose fields are already written, without renumbering
+  them too, silently scrambles the solution. Keep it between `checkMesh` and
+  the end of `Allmesh`.
 - **Stage markers**, not log parsing, decide what is done: `.stage_mesh`,
   `.stage_solve`. `isDone`/`markDone` in `caseFunctions.sh`.
 - **Logs** are `log.<application>` in the case directory, OpenFOAM style.
@@ -132,12 +136,16 @@ These are real and documented, not things to silently "fix":
   `wheel_generator.py`) against a 0.293 mm target cell at L6, so the tread
   shows facets. Raising `n_circ` is the fix, but it changes the geometry the
   existing comparisons were made against.
-- `snappyHexMesh` cannot do **per-STL-region distance refinement**, which
-  HELYX did for the endplate bottom edge and the wheel plinth. Two explicit
-  `searchableBox` zones stand in for it. See `docs/07_case_reference.md`.
-  **Those two boxes are positioned for the baseline geometry and do not
-  follow the parameters** — re-check them before extending the sweep to very
-  different ride heights or wheel widths.
+- `snappyHexMesh` cannot do **per-STL-region distance refinement**. The way
+  around it, used for the endplate shedding edge: `Allmesh` extracts that
+  region into its own file with `surfaceSplitByPatch`, and
+  `snappyHexMeshDict` adds it as a geometry entry used **only** in
+  `refinementRegions`. That makes the refinement follow the geometry across
+  the sweep. Use the same trick for any other region that needs distance
+  refinement — do not go back to fixed boxes.
+  **Still fixed boxes, and the thing to re-check when extending the
+  parameter range:** `L5-vortex-inboard/outboard`, which cover the vortex
+  trajectory downstream.
 
 - **`wing-TE`, `wing-endplate_TE` and `wheel-plinth` end up with zero prism
   layers, and that is accepted.** snappyHexMesh is known for incomplete layer

@@ -22,9 +22,11 @@ Layer addition is the expensive part — about 60 % of the total. See
 | sanity check | `surfaceCheck` | `log.surfaceCheck.*` (advisory) |
 | feature edges | `surfaceFeatureExtract` | `constant/extendedFeatureEdgeMesh/*.eMesh` |
 | background mesh | `blockMesh` | `constant/polyMesh` — 123 624 cells |
-| split for MPI | `decomposePar` | `processor*/` |
+| extract the shedding edge | `surfaceSplitByPatch` | `constant/triSurface/endplate_bottom.stl` |
+| split for MPI | `decomposePar` | `processor*/` (scotch) |
 | refine, snap, layer | `snappyHexMesh` | the mesh |
 | quality report | `checkMesh` | `log.checkMesh` |
+| cell renumbering | `renumberMesh` | better cache locality |
 
 The mesh is left **decomposed** in `processor*/`, which is what `./Allsolve`
 expects. `./Allpost --reconstruct` merges it when you want to open it in
@@ -110,8 +112,7 @@ with decreasing level.
 
 ### Volume boxes
 
-Seven `searchableBox` regions carried over from the HELYX `volRef` list, plus
-two that compensate for a snappyHexMesh limitation (below). All `mode inside`.
+`searchableBox` regions, all `mode inside`.
 
 | box | level | covers |
 |---|---|---|
@@ -119,30 +120,60 @@ two that compensate for a snappyHexMesh limitation (below). All `mode inside`.
 | `L3-body` | 3 | around both bodies |
 | `L4-neargeom` | 4 | immediate vicinity |
 | `L4-wake` | 4 | downstream of x = 40 mm |
-| `L5-gap-underwing` | 5 | the ground-effect gap |
-| `L5-vortex-inboard` | 5 | inboard endplate vortex path |
-| `L5-vortex-outboard` | 5 | outboard vortex path |
-| `L6-endplate-bottom-edge` | 6 | see below |
-| `L7-contact-patch` | 7 | see below |
+| `L5-vortex-inboard` | 5 | inboard endplate vortex **path** |
+| `L5-vortex-outboard` | 5 | outboard vortex **path** |
+| `L6-contact-patch` | 6 | the wheel/ground contact zone |
 
-### The one thing that could not be translated
+Two boxes from the original HELYX `volRef` list are deliberately gone:
 
-HELYX applied **distance refinement per STL region**: L6 within 3 mm of
-`wing-ep-bottom`, and L7 within 5 mm of `wheel-plinth`. snappyHexMesh can do
-distance refinement only around a *whole* geometry entry, not around one
-region of it.
+- **`L5-gap-underwing`** — redundant. The wing surfaces already reach L5–L6
+  from their own surface levels, and the distance refinement puts L5 within
+  15 mm of them, which covers the ground-effect gap.
+- **`L6-endplate-bottom-edge`** — replaced by distance refinement on the edge
+  itself (below), which is both cheaper and parameter-following.
 
-Substituted with two explicit boxes placed over those features:
+`L6-contact-patch` is at L6, not L7. The plinth surface level is (6 7), so
+the cells at the wall are L6 at their coarsest and the plinth carries no
+prism layers; a box finer than the wall cannot improve a resolution the wall
+does not have, it only adds cells and a worse transition. Sized to the
+geometric contact zone: with R = 43.875 mm the wheel surface is below
+z = 4 mm only for |x| ≤ 18.4 mm.
 
+### Refining the endplate vortex so it follows the geometry
+
+The dominant vortex of this case is shed from the **bottom edge of the
+endplate**. Its position moves with every parameter: span, ride height and
+angle of attack all shift it. A fixed box is the wrong tool.
+
+snappyHexMesh cannot apply distance refinement to one *region* of a
+multi-region surface — but it can to a separate geometry *file*. So `Allmesh`
+extracts just that strip:
+
+```bash
+surfaceSplitByPatch -patches '(wing-endplate_bottom)' constant/triSurface/wing.stl
+mv constant/triSurface/wing_wing-endplate_bottom.stl    constant/triSurface/endplate_bottom.stl
 ```
-L6-endplate-bottom-edge   (-0.145 0.095 0.004) .. (-0.048 0.112 0.016)
-L7-contact-patch          (-0.050 0.070 0.000) .. ( 0.050 0.122 0.008)
+
+and `snappyHexMeshDict` adds it as a geometry entry used **only** in
+`refinementRegions` (the patch itself already comes from `wing.stl`):
+
+```c
+endplateBottomEdge
+{
+    mode    distance;
+    levels  ((0.006 6) (0.030 5));
+}
 ```
 
-Equivalent in intent, not identical in shape: a box instead of a shell
-following the surface. If you change the geometry substantially — much
-different ride height or wheel width — **these boxes do not follow it** and
-must be repositioned. This is the main thing to re-check when extending the
+L6 within 6 mm of the shedding edge, L5 out to 30 mm. Roughly 0.2 M cells,
+and it tracks the geometry across the whole parameter sweep.
+
+> Only the 91 × 3 mm bottom strip is extracted. A distance shell around the
+> whole endplate would be a great deal of mesh for no benefit.
+
+Division of labour: this entry resolves where the vortex is **created**; the
+`L5-vortex-inboard/outboard` boxes cover its downstream **trajectory**. Those
+two are still fixed boxes, and are the thing to re-check when extending the
 parameter range.
 
 ---
@@ -165,6 +196,31 @@ the two must be changed together.
 
 Rough derivation: Re_c = 46 800 → Cf ≈ 0.058·Re^−0.2 ≈ 0.0068 →
 τ_w ≈ 0.39 Pa → u_τ ≈ 0.58 m/s → y⁺(0.07 mm) ≈ 2.5.
+
+---
+
+## 3.4b Decomposition and renumbering
+
+`decomposePar` splits the **background** mesh (123 624 cells) with `scotch`,
+and `snappyHexMesh` rebalances as it refines. Measured on the baseline case
+the final imbalance is **0.8 %**, so no `redistributePar` pass is needed.
+
+`Allmesh` then runs:
+
+```bash
+mpirun -np $NP renumberMesh -overwrite -constant -no-fields -parallel
+```
+
+snappyHexMesh leaves the cells in refinement order, which scatters
+neighbouring cells across memory. CuthillMcKee bandwidth reduction fixes
+that, and on the baseline case it cut the matrix profile from
+**8.84·10¹¹ to 1.69·10¹¹** — a factor of 5.2. That is cache locality the
+solver gets for free.
+
+`-no-fields` is correct here because `Allmesh` renumbers **before** any
+fields exist; `Allsolve` restores `0/` afterwards. Renumbering a mesh whose
+fields are already in place without renumbering them too would silently
+scramble the solution.
 
 ---
 

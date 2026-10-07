@@ -86,6 +86,22 @@ runSerial surfaceTransformPoints -scale '(0.001 0.001 0.001)' \
     "$WHEEL_SRC" constant/triSurface/wheel.stl
 mv log.surfaceTransformPoints log.surfaceTransformPoints.wheel
 
+# The endplate bottom edge, as its own file. snappyHexMeshDict uses it for
+# DISTANCE refinement, which snappyHexMesh cannot do on one region of a
+# multi-region surface. Extracting it here is what makes the endplate vortex
+# refinement follow the geometry across the parameter sweep instead of
+# sitting in a fixed box.
+#
+# Only the 91 x 3 mm bottom strip: a distance shell around the whole endplate
+# would be a lot of mesh for no benefit.
+log "extracting the endplate bottom edge for distance refinement"
+runSerial surfaceSplitByPatch -patches '(wing-endplate_bottom)' \
+    constant/triSurface/wing.stl
+mv -f constant/triSurface/wing_wing-endplate_bottom.stl \
+      constant/triSurface/endplate_bottom.stl \
+    || die "surfaceSplitByPatch did not produce wing-endplate_bottom -
+     has the region been renamed in the geometry generator?"
+
 # Record what was actually meshed, so a case directory is self-describing
 {
     echo "wing:  $WING_SRC"
@@ -173,6 +189,26 @@ CELLS=$(grep -m1 -oE '^[[:space:]]*cells:[[:space:]]*[0-9]+' log.checkMesh \
 # Layer coverage is the number worth knowing. The HELYX mesh reached 100 %.
 grep -iE 'layer coverage|overall coverage' log.snappyHexMesh \
     | tail -3 | sed 's/^/  /' || true
+
+
+
+# ---------------------------------------------------------------------------
+step "Renumbering"
+# ---------------------------------------------------------------------------
+# Cell renumbering for cache locality. snappyHexMesh leaves the cells in
+# refinement order, which scatters neighbours across memory; CuthillMcKee
+# bandwidth reduction typically buys 5-15 % on the solve for free.
+#
+# -constant because the mesh lives in constant/, and -no-fields because at
+# this point there are none (Allsolve restores 0/ afterwards).
+if ! mpirun -np "$NP" ${MPIRUN_ARGS} renumberMesh \
+        -overwrite -constant -no-fields -parallel \
+        > log.renumberMesh 2>&1; then
+    log "WARNING: renumberMesh failed, continuing with the original ordering"
+    tail -n 15 log.renumberMesh | sed 's/^/    /'
+else
+    grep -iE "bandwidth|profile" log.renumberMesh | head -4 | sed 's/^/  /' || true
+fi
 
 
 markDone mesh
