@@ -71,6 +71,21 @@ reconstructed mesh by `nSurfaceLayers`. Usual causes, in order:
 4. genuinely thin geometry: the 0.5 mm blunt TE cannot take 0.87 mm of layers
    on both sides
 
+**`Entry 'relaxed' not found in dictionary "meshQualityControls"`**
+→ `addLayersControls/nRelaxedIter` is set but `system/meshQualityDict` has no
+`relaxed` sub-dictionary. Painful one: it aborts *after* the layers have been
+built, so a 40-minute mesh is lost. The block is shipped in
+`meshQualityDict`; if you replaced that file, put it back. Note it *replaces*
+the main quality settings rather than extending them, so it has to be
+complete.
+
+**snappyHexMesh spends many minutes in `Shell refinement iteration` with
+almost no new cells**
+→ `minRefinementCells` is too small for the mesh size. The loop runs until
+fewer than that many cells are selected, capped at 100 iterations. At the
+tutorial value of 10 this case burned ~8 minutes adding ~1000 cells. It is
+set to 1000 here for that reason.
+
 **`locationInMesh` is outside the mesh / the mesh comes out empty**
 → `(0.5001 0.3001 0.3001)` must be inside the fluid and off the base-mesh
 face planes. If you change the domain, move it.
