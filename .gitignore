@@ -5,6 +5,15 @@
 # the setup, the docs and one baseline geometry, and should stay under ~10 MB.
 # ===========================================================================
 
+# --- secrets ---------------------------------------------------------------
+# Never commit credentials. Kept broad on purpose.
+gitToken*
+*token*
+*Token*
+.git-credentials
+*.pem
+*.key
+
 # --- machine-specific ------------------------------------------------------
 env/project.env
 
