@@ -139,13 +139,16 @@ These are real and documented, not things to silently "fix":
   follow the parameters** — re-check them before extending the sweep to very
   different ride heights or wheel widths.
 
-- **Three patches get fewer layers than the rest by design**: `wing-TE` and
-  `wing-endplate_TE` (2 layers from 0.05 mm) and `wheel-plinth` (2 from
-  0.1 mm). With the standard stack they got *zero*: 4 layers from 0.14 mm
-  total 0.87 mm, and a blunt 0.5 mm trailing edge has no room for it. Read
-  the per-patch layer table at the end of `log.snappyHexMesh` after any
-  change here. Ordering matters: `layerParameters` iterates the `layers`
-  entries and overwrites as it goes, so the **last matching entry wins**.
+- **`wing-TE`, `wing-endplate_TE` and `wheel-plinth` end up with zero prism
+  layers, and that is accepted.** snappyHexMesh is known for incomplete layer
+  coverage at sharp edges and where two layered surfaces meet; reducing the
+  request to 2 thin layers did not change it, because the limit is topology
+  and not thickness. Do not chase this. All three sit in L7 cells
+  (0.146 mm), so the near-wall spacing is comparable to the layered regions
+  anyway. Overall coverage is ~92 %. The number that matters is y⁺ in
+  `results.txt`.
+  Ordering note for the `layers` dict: `layerParameters` iterates the entries
+  and overwrites as it goes, so the **last matching entry wins**.
 
 - **A refinement box at L7 costs 8× what it does at L6 for the same volume.**
   Check `Cells per refinement level` in `log.snappyHexMesh` after touching

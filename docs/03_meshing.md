@@ -257,33 +257,62 @@ a box fills that volume solid. Sizing it to the actual contact zone
 Each level costs 8× the previous one for the same volume, so this arithmetic
 is worth doing before meshing rather than after.
 
-**Thin features cannot take the standard layer stack.** The per-patch layer
-table at the end of `log.snappyHexMesh` is the thing to read:
+**Three patches get no prism layers at all, and asking for thinner ones does
+not change it.** The per-patch table at the end of `log.snappyHexMesh` is the
+thing to read:
 
 ```
 patch                faces    target   achieved   thickness
-wing-suction         31398         4       3.88        95 %
-wing-TE                752         4          0         0 %
-wing-endplate_TE       218         4          0         0 %
-wheel-plinth          2740         4          0         0 %
-wheel-tread          93270         4       3.17      56 %
-ground              372151         3       2.95      86 %
+ground              225301         3       2.91      82.3 %
+wing-suction         31401         4       3.88        95 %
+wing-pressure        27763         4       3.87      96.1 %
+wing-TE                752         2          0         0 %
+wing-endplate_inner  14343         4       3.47      79.4 %
+wing-endplate_outer  16775         4       3.75      95.1 %
+wing-endplate_top     3256         4       2.85        76 %
+wing-endplate_bottom  3256         4       2.85      76.4 %
+wing-endplate_LE      1392         4       3.87      97.4 %
+wing-endplate_TE       212         2          0         0 %
+wheel-tread          69130         4       3.57      63.4 %
+wheel-shoulders      37533         4       3.02      66.4 %
+wheel-sidewall       33144         4       3.99      99.9 %
+wheel-plinth          2739         2          0         0 %
 ```
 
-Four layers from 0.14 mm with ratio 1.3 total 0.87 mm. A blunt trailing edge
-0.5 mm thick has at most 0.25 mm of room per side, so it got nothing at all.
-Those three patches now have their own entries: 2 layers from 0.05 mm for the
-trailing edges, 2 from 0.1 mm for the plinth.
+Overall coverage 92.4 %.
+
+`wing-TE`, `wing-endplate_TE` and `wheel-plinth` are at zero. They were
+originally asked for 4 layers from 0.14 mm (0.87 mm total), which is more
+than fits on a 0.5 mm blunt edge — but reducing them to 2 layers from
+0.05 mm (0.115 mm) **did not help**. The limit is not thickness, it is
+topology: snappyHexMesh refuses to extrude across a sharp convex edge under
+its `featureAngle` / medial-axis rules, and the plinth additionally collides
+with the ground layers where it cuts the ground plane.
+
+**This is accepted, not an open defect.** snappyHexMesh is well known for
+leaving gaps in layer coverage, particularly at sharp edges and where two
+layered surfaces meet. Patches with no layers are a property of the mesher,
+not a sign the setup is wrong — do not spend time chasing them.
+
+It also matters less here than it looks, because all three sit inside the
+finest refinement: at L7 the cell is 0.146 mm, so the first cell centre is
+~0.073 mm from the wall, about the same wall distance the prism layers give
+elsewhere and well inside the range the all-y⁺ wall functions cover.
+
+The number to actually check is y⁺ in the `results.txt` of the case you run.
+If you ever do need layers on a sharp edge, the lever is
+`addLayersControls/featureAngle` (60 here) — raising it forces extrusion
+across sharper edges, at some cost in cell quality.
+
+The wheel tread and shoulders reaching only 63 % and 66 % is a different
+thing: they are tessellated at 1.53 mm against 0.293 mm cells (see
+[02_geometry.md](02_geometry.md#25-known-geometry-issues)), so the layers get
+squeezed by the facets.
 
 > Ordering matters in `addLayersControls/layers`. `layerParameters` iterates
 > the entries in order and overwrites as it goes, so **the last matching
 > entry wins** — regex or literal alike. Specific patches must come after the
 > regexes they override.
-
-The wheel tread reaching only 56 % is a different thing: it is tessellated at
-1.53 mm against 0.293 mm cells (see
-[02_geometry.md](02_geometry.md#25-known-geometry-issues)), so the layers get
-squeezed by the facets.
 
 ---
 
