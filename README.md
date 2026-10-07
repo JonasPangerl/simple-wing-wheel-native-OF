@@ -6,8 +6,8 @@ with a symmetry plane. Built to sweep a 420-case parameter space and compare
 against the Diasinos et al. papers.
 
 **Pure native OpenFOAM v2606.** Meshing with `snappyHexMesh`, solving with
-`simpleFoam` (segregated SIMPLEC). No commercial solver, no external tooling,
-no dependency beyond OpenFOAM and `python3`.
+`simpleFoam` (segregated SIMPLEC). No dependency beyond OpenFOAM and
+`python3`.
 
 ---
 
@@ -95,7 +95,7 @@ RANS_Simulations/
 4. [Solving](docs/04_solving.md) — boundary conditions, turbulence, convergence
 5. [Post-processing](docs/05_postprocessing.md) — forces, y+, images
 6. [Campaign](docs/06_campaign.md) — running many cases, sequentially or in parallel
-7. [Case reference](docs/07_case_reference.md) — every dictionary entry, and the HELYX → OpenFOAM mapping
+7. [Case reference](docs/07_case_reference.md) — every dictionary entry and why it is set the way it is
 8. [Troubleshooting](docs/08_troubleshooting.md) — what fails and why
 
 [AGENTS.md](AGENTS.md) is the orientation file for AI coding agents, and a

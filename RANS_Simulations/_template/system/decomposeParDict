@@ -20,8 +20,7 @@ FoamFile
 numberOfSubdomains  20;
 
 // scotch needs no geometric hints and balances a locally refined mesh far
-// better than 'simple' or 'hierarchical' would. The previous HELYX setup
-// used ptscotch for the same reason.
+// better than 'simple' or 'hierarchical' would.
 method              scotch;
 
 

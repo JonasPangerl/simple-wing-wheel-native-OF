@@ -1,18 +1,26 @@
 #!/usr/bin/env python3
 """
-make_tex_data.py - turn a finished case into LaTeX macros for the report
+make_tex_data.py - turn a meshed case into LaTeX macros for the report
 
     python3 make_tex_data.py --case <dir> --out report/generated/case_data.tex
 
 Every number in the report comes from here, so nothing is typed by hand and
-nothing can silently go stale. A quantity that is not available yet becomes
-the macro value "n/a" rather than being omitted, so the report still builds.
+nothing can silently go stale. The sources are the case's own definition and
+its meshing logs:
+
+    include/caseParameters    the case-defining numbers
+    log.blockMesh             background cell count
+    log.snappyHexMesh         refinement levels, layer table, coverage
+    log.checkMesh             final cell count, checkMesh verdict
+    TIMING.txt                stage wall times, rank count, OpenFOAM api
+
+A quantity that is not available becomes the macro value "n/a" rather than
+being omitted, so the report still builds on a half-finished case.
 
 Python 3.6 compatible, standard library only.
 """
 
 import argparse
-import json
 import os
 import re
 import sys
@@ -43,21 +51,51 @@ def thousands(v):
         return str(v)
 
 
+def read_text(path):
+    if not os.path.isfile(path):
+        return None
+    return open(path, errors="replace").read()
+
+
+def read_parameters(case):
+    """The case-defining numbers, straight out of include/caseParameters."""
+    txt = read_text(os.path.join(case, "include", "caseParameters"))
+    if txt is None:
+        return {}
+
+    wanted = {
+        "caseName": str, "spanC": float, "heightC": float,
+        "aoaDeg": float, "widthC": float,
+        "UInf": float, "rhoInf": float, "nuInf": float, "cRef": float,
+        "nIterations": str,
+    }
+
+    # Strip // comments first, so a commented-out key is not picked up.
+    txt = re.sub(r"//.*$", "", txt, flags=re.MULTILINE)
+    out = {}
+    for key, cast in wanted.items():
+        m = re.search(r"^\s*%s\s+(.+?)\s*;" % re.escape(key), txt, re.M)
+        if not m:
+            continue
+        raw = m.group(1).strip().strip('"')
+        try:
+            out[key] = cast(raw)
+        except ValueError:
+            out[key] = raw
+    return out
+
+
 def read_timing(case):
     """Stage wall times from TIMING.txt, in seconds."""
-    path = os.path.join(case, "TIMING.txt")
+    txt = read_text(os.path.join(case, "TIMING.txt"))
     out = {}
-    if not os.path.isfile(path):
+    if txt is None:
         return out
-    txt = open(path, errors="replace").read()
-    for stage in ("MESHING", "SOLVING", "POSTPROCESSING"):
+    for stage in ("MESHING",):
         m = re.search(r">>> %s.*?\n\s+OK\s+\S+\s+\((\d+) s\)" % stage,
                       txt, re.S)
         if m:
             out[stage.lower()] = int(m.group(1))
-    m = re.search(r"^TOTAL\s+\S+\s+\((\d+) s\)", txt, re.M)
-    if m:
-        out["total"] = int(m.group(1))
     m = re.search(r"^NP\s*:\s*(\d+)", txt, re.M)
     if m:
         out["np"] = int(m.group(1))
@@ -67,12 +105,43 @@ def read_timing(case):
     return out
 
 
+def read_mesh(case):
+    """Cell counts and the checkMesh verdict."""
+    out = {}
+
+    # The final cell count comes from checkMesh, whose mesh-stats block prints
+    # a 'cells:' line. More dependable than snappyHexMesh's progress output,
+    # whose wording varies between versions.
+    txt = read_text(os.path.join(case, "log.checkMesh"))
+    if txt is not None:
+        cells = re.findall(r"^\s*cells:\s*(\d+)", txt, re.M)
+        if cells:
+            out["cells"] = int(cells[-1])
+        out["checkMesh_ok"] = "Mesh OK" in txt
+        out["checkMesh_failures"] = [f.strip() for f in
+                                     re.findall(r"^\s*\*\*\*(.+)$", txt, re.M)][:10]
+
+    txt = read_text(os.path.join(case, "log.snappyHexMesh"))
+    if txt is not None and "cells" not in out:
+        cells = re.findall(r"^\s*cells:\s*(\d+)", txt, re.M)
+        if cells:
+            out["cells"] = int(cells[-1])
+
+    # blockMesh reports 'nCells: <n>', not 'cells:'
+    txt = read_text(os.path.join(case, "log.blockMesh"))
+    if txt is not None:
+        m = re.search(r"^\s*nCells:\s*(\d+)", txt, re.M)
+        if m:
+            out["base_cells"] = int(m.group(1))
+
+    return out
+
+
 def read_layer_table(case):
     """The achieved per-patch layer table from log.snappyHexMesh."""
-    path = os.path.join(case, "log.snappyHexMesh")
-    if not os.path.isfile(path):
+    txt = read_text(os.path.join(case, "log.snappyHexMesh"))
+    if txt is None:
         return [], None
-    txt = open(path, errors="replace").read()
 
     idx = txt.rfind("patch                faces        layers        overall")
     rows = []
@@ -94,10 +163,9 @@ def read_layer_table(case):
 
 def read_levels(case):
     """Cells per refinement level."""
-    path = os.path.join(case, "log.snappyHexMesh")
-    if not os.path.isfile(path):
+    txt = read_text(os.path.join(case, "log.snappyHexMesh"))
+    if txt is None:
         return []
-    txt = open(path, errors="replace").read()
     idx = txt.rfind("Cells per refinement level:")
     if idx < 0:
         return []
@@ -111,20 +179,6 @@ def read_levels(case):
     return out
 
 
-def solver_rate(case):
-    path = os.path.join(case, "log.simpleFoam")
-    if not os.path.isfile(path):
-        return None, None
-    txt = open(path, errors="replace").read()
-    its = re.findall(r"^Time = (\d+)", txt, re.M)
-    ex = re.findall(r"^ExecutionTime = ([\d.]+) s", txt, re.M)
-    if not its or not ex:
-        return None, None
-    n = int(its[-1])
-    t = float(ex[-1])
-    return n, (t / n if n else None)
-
-
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--case", required=True)
@@ -132,32 +186,20 @@ def main():
     args = ap.parse_args()
 
     case = os.path.abspath(args.case)
-    res = {}
-    rj = os.path.join(case, "results.json")
-    if os.path.isfile(rj):
-        try:
-            res = json.load(open(rj))
-        except ValueError:
-            res = {}
 
-    par = res.get("parameters", {})
-    mesh = res.get("mesh", {})
-    solve = res.get("solve", {})
-    forces = res.get("forces", {})
-    yplus = res.get("yplus", {})
-    resid = res.get("residuals", {})
-
+    par = read_parameters(case)
+    mesh = read_mesh(case)
     timing = read_timing(case)
     layers, coverage = read_layer_table(case)
     levels = read_levels(case)
-    n_iter, sec_per_iter = solver_rate(case)
 
     m = []           # (macro, value)
 
     def add(name, value):
         m.append((name, value))
 
-    add("caseName", tex_escape(str(res.get("case", os.path.basename(case)))))
+    add("caseName", tex_escape(str(par.get("caseName",
+                                           os.path.basename(case)))))
     add("ofApi", timing.get("api", "2606"))
     add("npRanks", str(timing.get("np", "n/a")))
 
@@ -174,6 +216,10 @@ def main():
     else:
         add("ReC", "n/a")
 
+    # Configured iteration budget. The report quotes it as the ceiling the
+    # solve would run to, not as a number of iterations taken.
+    add("nIterations", str(par.get("nIterations", "n/a")))
+
     add("nCells", thousands(mesh.get("cells")))
     add("nBaseCells", thousands(mesh.get("base_cells")))
     add("layerCoverage", fmt(coverage, "{:.1f}"))
@@ -182,47 +228,6 @@ def main():
 
     add("meshMinutes", fmt(timing.get("meshing", 0) / 60.0, "{:.0f}")
         if "meshing" in timing else "n/a")
-    add("solveMinutes", fmt(timing.get("solving", 0) / 60.0, "{:.0f}")
-        if "solving" in timing else "n/a")
-    add("postMinutes", fmt(timing.get("postprocessing", 0) / 60.0, "{:.1f}")
-        if "postprocessing" in timing else "n/a")
-    add("totalMinutes", fmt(timing.get("total", 0) / 60.0, "{:.0f}")
-        if "total" in timing else "n/a")
-
-    # endTime from the case parameters, so the report can say "N of M"
-    cp = os.path.join(case, "include", "caseParameters")
-    n_target = "n/a"
-    if os.path.isfile(cp):
-        m0 = re.search(r"^\s*nIterations\s+(\d+)\s*;", 
-                       open(cp, errors="replace").read(), re.M)
-        if m0:
-            n_target = m0.group(1)
-    add("nIterations", n_target)
-
-    add("nIter", str(n_iter) if n_iter else "n/a")
-    add("secPerIter", fmt(sec_per_iter, "{:.2f}"))
-    add("converged", "yes" if solve.get("converged") else "no")
-
-    for g in ("total", "wing", "wheel"):
-        gg = forces.get(g, {})
-        add("cl" + g.capitalize(),
-            fmt(gg.get("Cl", {}).get("mean") if gg.get("Cl") else None))
-        add("cd" + g.capitalize(),
-            fmt(gg.get("Cd", {}).get("mean") if gg.get("Cd") else None))
-        sp = gg.get("Cl", {}).get("spread_rel") if gg.get("Cl") else None
-        add("spread" + g.capitalize(),
-            fmt(sp * 100.0 if sp is not None else None, "{:.2f}"))
-
-    for f in ("p", "Ux", "Uy", "Uz", "k", "omega"):
-        add("res" + f.replace("U", "U"), fmt(resid.get(f), "{:.2e}"))
-
-    wing_y = [v["avg"] for k, v in yplus.items() if k.startswith("wing-")]
-    wheel_y = [v["avg"] for k, v in yplus.items() if k.startswith("wheel-")]
-    add("yplusWing", fmt(sum(wing_y) / len(wing_y) if wing_y else None, "{:.2f}"))
-    add("yplusWheel",
-        fmt(sum(wheel_y) / len(wheel_y) if wheel_y else None, "{:.2f}"))
-    add("yplusMax", fmt(max((v["max"] for v in yplus.values()), default=None)
-                        if yplus else None, "{:.1f}"))
 
     os.makedirs(os.path.dirname(os.path.abspath(args.out)), exist_ok=True)
     with open(args.out, "w") as fh:

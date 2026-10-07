@@ -13,7 +13,7 @@ RANS_Simulations/_template/system/snappyHexMeshDict. It is duplicated rather
 than parsed, so if you move a box there, move it here too.
 
 Boxes are written here in MILLIMETRES and converted to metres on output,
-matching the mm values in the original HELYX volRef list.
+matching the mm values the boxes were designed in.
 """
 
 import argparse
@@ -29,8 +29,8 @@ REFINEMENT_BOXES = [
     ("L5-gap-underwing",        5, (-150,  60,   0),   ( 60, 130,  60)),
     ("L5-vortex-inboard",       5, (-100,  20,   0),   (200, 110,  50)),
     ("L5-vortex-outboard",      5, (-100, 100,   0),   (200, 145,  50)),
-    # These two replace the per-region distance refinement that HELYX applied
-    # to wing-ep-bottom and wheel-plinth, which snappyHexMesh cannot express.
+    # These two stand in for per-region distance refinement around
+    # wing-ep-bottom and wheel-plinth, which snappyHexMesh cannot express.
     # They are positioned for the BASELINE geometry and do not follow the
     # parameters - see docs/07_case_reference.md.
     ("L6-endplate-bottom-edge", 6, (-145,  95,   4),   (-48, 112,  16)),

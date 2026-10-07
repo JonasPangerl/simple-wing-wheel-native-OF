@@ -2,10 +2,8 @@
 | Derived fields for post-processing, written only at write times so they     |
 | cost almost nothing during the run.                                         |
 |                                                                             |
-| These replace the HELYX 'additionalFields' step. The HELYX list also had    |
-| normalizedHelicity, helicitySignedNormalizedQ and k-factor, which have no   |
-| native equivalent; Q and vorticity cover the same vortex-identification     |
-| job. See docs/05_postprocessing.md.                                         |
+| Q and vorticity do the vortex-identification job.                           |
+| See docs/05_postprocessing.md.                                              |
 \*---------------------------------------------------------------------------*/
 
 #include "<case>/include/caseParameters"

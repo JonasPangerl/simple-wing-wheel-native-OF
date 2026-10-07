@@ -139,9 +139,8 @@ fields:
   # Q scales with the square of a velocity gradient, so this range is a
   # starting guess: check the real data range once and adjust.
   #
-  # The previous HELYX setup used helicitySignedNormalizedQ here, whose sign
-  # followed the rotation direction. Native OpenFOAM has no equivalent;
-  # pair Q with vorticityX below to recover the sense of rotation.
+  # Q alone carries no sense of rotation; pair it with vorticityX below to
+  # recover the rotation direction.
   - key: qCriterion
     array: Q
     label: Q criterion

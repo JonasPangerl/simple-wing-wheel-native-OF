@@ -12,9 +12,7 @@
 #   yPlus             on wall patches
 #   U p k omega nut   solver fields
 #
-# The previous HELYX setup also produced normalizedHelicity,
-# helicitySignedNormalizedQ and k-factor. Those have no native equivalent and
-# have been dropped; Q plus vorticity cover vortex identification.
+# Q plus vorticity cover vortex identification.
 
 fields:
   # --- pressure ------------------------------------------------------------

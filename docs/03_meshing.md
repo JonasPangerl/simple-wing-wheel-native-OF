@@ -86,9 +86,8 @@ would appear in the force-integration groups.
 
 ### Surface levels (per STL region)
 
-Translated directly from the previous HELYX table. `level (min max)`: every
-cell cutting the surface reaches `min`; cells seeing a feature sharper than
-`resolveFeatureAngle` (30°) go to `max`.
+`level (min max)`: every cell cutting the surface reaches `min`; cells seeing
+a feature sharper than `resolveFeatureAngle` (30°) go to `max`.
 
 | region | level | reasoning |
 |---|---|---|
@@ -124,7 +123,7 @@ with decreasing level.
 | `L5-vortex-outboard` | 5 | outboard vortex **path** |
 | `L6-contact-patch` | 6 | the wheel/ground contact zone |
 
-Two boxes from the original HELYX `volRef` list are deliberately gone:
+Two boxes that an earlier version of the list had are deliberately gone:
 
 - **`L5-gap-underwing`** — redundant. The wing surfaces already reach L5–L6
   from their own surface levels, and the distance refinement puts L5 within
@@ -188,7 +187,7 @@ nSurfaceLayers      4;          // wing-* and wheel-*
 ```
 
 Thicknesses 0.140, 0.182, 0.237, 0.308 mm → 0.866 mm total. The ground gets
-3 layers starting at 0.25 mm, carried over from the HELYX override.
+3 layers starting at 0.25 mm.
 
 This puts the first cell centre at **y⁺ ≈ 2.5**, inside the buffer layer. That
 choice drives the wall-function selection in [04_solving.md](04_solving.md) —
@@ -226,8 +225,7 @@ scramble the solution.
 
 ## 3.5 Mesh quality limits
 
-`system/meshQualityDict` starts from OpenFOAM's defaults and relaxes them the
-way HELYX did:
+`system/meshQualityDict` starts from OpenFOAM's defaults and relaxes them:
 
 | entry | here | OF default | why |
 |---|---|---|---|
@@ -250,7 +248,7 @@ cells. If the solve diverges immediately, this is the first knob to question.
 
 ```bash
 grep -E 'cells:' log.snappyHexMesh | tail -1        # ~19 M for the baseline
-grep -i 'coverage' log.snappyHexMesh                # HELYX reached 100 %
+grep -i 'coverage' log.snappyHexMesh                # overall layer coverage
 grep -E '\*\*\*|Mesh OK' log.checkMesh
 ```
 
@@ -305,9 +303,9 @@ L3  0.59 M     L7  2.38 M
 
 **A box at L7 is expensive, so size it to the geometry.** The first version of
 `L7-contact-patch` was 100 × 52 × 8 mm and produced **10.07 M cells — 35 % of
-the entire mesh**, pushing it to 28.5 M cells against the 18.7 M that the
-HELYX setup produced. HELYX used a 5 mm distance *shell* around the plinth;
-a box fills that volume solid. Sizing it to the actual contact zone
+the entire mesh**, pushing the total to 28.5 M cells. What the refinement is
+meant to be is a thin shell following the plinth; a box fills that volume
+solid instead. Sizing it to the actual contact zone
 (|x| ≤ 18 mm, where the wheel surface is below z = 4 mm) brings it to 2.4 M.
 
 Each level costs 8× the previous one for the same volume, so this arithmetic

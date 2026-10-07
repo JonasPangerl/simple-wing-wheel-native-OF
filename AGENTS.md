@@ -11,9 +11,9 @@ Re_c ≈ 46 800. Half model, symmetry plane at y = 0, moving ground, rotating
 wheel. 420-case parameter sweep over S/c, h/c, AOA and W/c.
 
 **Native OpenFOAM v2606 only**: `snappyHexMesh` for the mesh, `simpleFoam`
-for the solve. This project was converted from a HELYX setup; **there must be
-no HELYX dependency left**. If you find one (`.bcm`, `caseSetup*`,
-`helyxHexMesh`, `bFoam`, `additionalFields`, `smDict`), it is a bug.
+for the solve. **Nothing outside OpenFOAM anywhere in the case.** If a
+dictionary or script reaches for a tool or library beyond OpenFOAM and the
+Python standard library, it is a bug.
 
 ## Hard invariants
 
@@ -121,7 +121,7 @@ blockMesh && checkMesh -constant
 ```
 
 After touching the mesh setup, the numbers to check are **cell count**
-(baseline ≈ 19 M), **layer coverage** (HELYX reached 100 %) and **checkMesh**.
+(baseline ≈ 19 M), **layer coverage** and **checkMesh**.
 After touching the solve, check **y+** (target ≈ 2.5; the wall functions are
 the all-y+ variants and misuse shows up as y+ ≫ 30) and the **force spread**
 over the averaging window in `results.txt`.

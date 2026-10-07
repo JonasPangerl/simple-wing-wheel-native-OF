@@ -32,36 +32,37 @@ during the run.
 ## 5.2 `results.json` and `results.txt`
 
 `./Allpost --summary` runs `scripts/collect_results.py`, which condenses the
-case into one machine-readable and one human-readable file.
+case into one machine-readable and one human-readable file. The layout of
+`results.txt`:
 
 ```
 ====================================================================
-  S1.42_h0.13_AOA8_W0.63
+  <case name>
 ====================================================================
 
-  S/c 1.42   h/c 0.13   AOA 8 deg   W/c 0.63
-  Uinf 10.0 m/s   chord 0.075 m
+  S/c ...   h/c ...   AOA ... deg   W/c ...
+  Uinf ... m/s   chord ... m
 
   Mesh
-    cells              18,720,401
-    base cells         123,624
-    layer coverage     100.0 %
-    checkMesh          OK
+    cells              <n>
+    base cells         <n>
+    layer coverage     <pct> %
+    checkMesh          OK | FAILED
 
   Solve
-    status             converged
-    iterations         1340
-    solver time        98.4 min
+    status             converged | NOT converged
+    iterations         <n>
+    solver time        <min>
 
   Force coefficient-areas  (mean over last 50 iterations)
     group        CL.A [m2]      CD.A [m2]     spread
-    wing          -0.004213       0.000871     0.31 %
-    wheel         -0.000204       0.001355     0.44 %
-    total         -0.004417       0.002226     0.28 %
+    wing             ...            ...         ... %
+    wheel            ...            ...         ... %
+    total            ...            ...         ... %
 
   y+  (last write)
     patch                         min      avg      max
-    wing-suction                 0.41     2.38     7.92
+    wing-suction                  ...      ...      ...
     ...
 ====================================================================
 ```
@@ -179,23 +180,21 @@ Configuration lives in `RANS_Simulations/postprocessing/`:
 All geometry in `slices.yaml` is in **metres**, with the landmark positions
 of the baseline case noted in its header.
 
-### Field names changed in the migration
+### The field names to ask for
 
-The HELYX post-processing produced several fields with no native equivalent.
-`colormaps.yaml` and `slices.yaml` have been updated accordingly:
+`colormaps.yaml` and `slices.yaml` address the fields that
+`system/fieldDerived` actually writes:
 
-| HELYX | now |
+| quantity | field name |
 |---|---|
-| `pressureCoeff` | `Cp` |
-| `totalPressureCoeff` | `CpT` |
-| `magVorticity` | `vorticity`, coloured by Magnitude |
-| `skinFrictionCoefficient` | `wallShearStress` |
-| `helicitySignedNormalizedQ` | `Q` (loses the helicity sign) |
-| `normalizedHelicity`, `normalizedHelicityVol`, `k-factor` | dropped, no equivalent |
+| pressure coefficient | `Cp` |
+| total pressure coefficient | `CpT` |
+| vorticity magnitude | `vorticity`, coloured by Magnitude |
+| skin friction | `wallShearStress` |
+| vortex identification | `Q` |
 
-The one real loss is the helicity sign on the Q field, which made the
-rotation direction of a vortex readable from a single plot. Pair `Q` with the
-x-component of `vorticity` to recover it.
+`Q` carries no sense of rotation on its own. Pair it with the x-component of
+`vorticity` so the rotation direction of a vortex is readable from one plot.
 
 The `Q` colour range in both config files is a **guess**
 (±5·10⁵). Q scales with the square of a velocity gradient, so it is

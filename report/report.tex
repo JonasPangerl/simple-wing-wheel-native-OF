@@ -60,7 +60,7 @@
 
 \title{\vspace{-12mm}\textbf{Front wing in ground effect beside a rotating
 wheel}\\[2mm]
-\large Steady RANS setup and verification report\\[1mm]
+\large Steady RANS mesh and setup report\\[1mm]
 \normalsize OpenFOAM v\ofApi\ (native) \textbf{·} \texttt{snappyHexMesh} +
 \texttt{simpleFoam} \textbf{·} case \caseName}
 \author{}
@@ -74,19 +74,18 @@ wheel}\\[2mm]
 % ---------------------------------------------------------------------------
 \begin{center}
 \fcolorbox{warn}{warn!6}{\parbox{0.95\linewidth}{\small
-\textbf{\bad{State of this report.}}
-The setup, the mesh and the whole figure and reporting chain are complete and
-verified. \textbf{The solution is not.} This build stops at
-\textbf{\nIter\ SIMPLE iterations} of the \nIterations\ configured, so every
-flow quantity in it --- forces, $C_p$, $C_pT$, $y^+$, $Q$ --- is a
-\emph{partially converged} field and must not be quoted as a result. The
-residuals are still at $10^{-2}$ (section~7).
+\textbf{\bad{Scope of this report.}}
+This is a \textbf{mesh and setup} report. The geometry, the domain, the mesh
+and the solver configuration are complete and verified; the numbers in it ---
+cell counts, refinement distribution, layer coverage, \texttt{checkMesh},
+meshing time --- are mesh-side quantities and can be relied on.
 
-Mesh-side numbers (cell counts, layer coverage, \texttt{checkMesh}, timings)
-are final and can be relied on.
+\textbf{No flow solution exists.} The case was meshed and stopped there, so
+there are no forces, no $C_p$, no $y^+$ and no convergence history to report.
+The physics and numerics in section~\ref{sec:numerics} describe what
+\emph{is configured}, not what has been run.
 
-To finish it: run the solve to completion and rebuild, see
-section~\ref{sec:finish}.
+Next step: section~\ref{sec:finish}.
 }}
 \end{center}
 \vspace{2mm}
@@ -105,46 +104,36 @@ ride height         & $h/c = \heightC$   & background cells & \nBaseCells\\
 angle of attack     & \aoaDeg$^\circ$ & layer coverage & \layerCoverage\,\%\\
 wheel width         & $W/c = \widthC$    & \texttt{checkMesh} clean & \checkMeshOk\\
 \midrule
-\multicolumn{2}{@{}l}{\textbf{Flow}} &
-\multicolumn{2}{l}{\textbf{Cost, \npRanks\ MPI ranks}}\\
+\multicolumn{2}{@{}l}{\textbf{Flow it is built for}} &
+\multicolumn{2}{l}{\textbf{Levels}}\\
 \midrule
-freestream  & \Uinf\,\si{m/s}                  & meshing   & \meshMinutes\,min\\
-chord       & \chord\,\si{m}                   & solving   & \solveMinutes\,min\\
-$Re_c$      & \ReC                             & per iteration & \secPerIter\,s\\
-$\rho$      & \rhoInf\,\si{kg/m^3}             & iterations & \nIter\\
-$\nu$       & \nuInf\,\si{m^2/s}               & converged & \converged\\
-\bottomrule
-\end{tabular}
-\end{center}
-
-\paragraph{Headline result.}
-Force \emph{coefficient-areas}, mean over the last 50 iterations.
-$A_{\mathrm{ref}} = \SI{1}{m^2}$ on purpose, so these are $C_L\!\cdot\!A$ and
-$C_D\!\cdot\!A$ in \si{m^2} --- the quantity the Diasinos papers tabulate.
-Negative lift is downforce.
-
-\begin{center}\small
-\begin{tabular}{@{}lrrr@{}}
-\toprule
- & $C_L\!\cdot\!A$ [\si{m^2}] & $C_D\!\cdot\!A$ [\si{m^2}] &
- spread of $C_L\!\cdot\!A$\\
-\midrule
-wing  & \clWing  & \cdWing  & \spreadWing\,\%\\
-wheel & \clWheel & \cdWheel & \spreadWheel\,\%\\
-total & \clTotal & \cdTotal & \spreadTotal\,\%\\
+freestream  & \Uinf\,\si{m/s}        & base cell & \SI{18.75}{mm} $=0.25c$\\
+chord       & \chord\,\si{m}         & L4 & \SI{1.17}{mm}\\
+$Re_c$      & \ReC                   & L5 & \SI{0.586}{mm}\\
+$\rho$      & \rhoInf\,\si{kg/m^3}   & L6 & \SI{0.293}{mm}\\
+$\nu$       & \nuInf\,\si{m^2/s}     & L7 & \SI{0.146}{mm}\\
 \bottomrule
 \end{tabular}
 \end{center}
 
 \noindent
-Mean $y^+$: wing \yplusWing, wheel \yplusWheel, maximum \yplusMax.
+Meshing took \meshMinutes\,min on \npRanks\ MPI ranks. No solve has been run.
+
+\paragraph{What the forces will be reported as, once the case is solved.}
+Force \emph{coefficient-areas}, not coefficients:
+$A_{\mathrm{ref}} = \SI{1}{m^2}$ is set on purpose in
+\texttt{system/forceCoeffs}, so \texttt{forceCoeffs} writes
+$C_L\!\cdot\!A$ and $C_D\!\cdot\!A$ in \si{m^2} --- the quantity the Diasinos
+papers tabulate, and the one that sidesteps which reference area to use as
+$S/c$ varies across the sweep. Negative lift is downforce. Three groups are
+configured: wing, wheel and both together.
 
 % ===========================================================================
 \section{Software and reproducibility}
 
 \begin{itemize}
 \item \textbf{OpenFOAM v\ofApi} (ESI/OpenCFD), built from source. Native
-  only --- no commercial solver, no in-house libraries.
+  only, no third-party CFD tooling.
 \item Mesh \texttt{snappyHexMesh}, solve \texttt{simpleFoam} (segregated,
   SIMPLEC), turbulence \texttt{kOmegaSST}.
 \item Geometry generated parametrically from the Diasinos specification;
@@ -153,13 +142,13 @@ Mean $y^+$: wing \yplusWing, wheel \yplusWheel, maximum \yplusMax.
   \texttt{numpy}/\texttt{pandas} needed to run a case.
 \end{itemize}
 
-\paragraph{To reproduce this case.}
+\paragraph{To reproduce the mesh in this report.}
 \begin{verbatim}
 cp env/project.env.example env/project.env   # set OPENFOAM_BASHRC and NP
 cd Diasinos_Geometry_Generator && .venv/bin/python -m geometry_generator.generate
 cd ../RANS_Simulations
 python3 prepare_case.py --span 1.42 --height 0.13 --aoa 8 --width 0.63
-cd S1.42_h0.13_AOA8_W0.63 && ./Allrun
+cd S1.42_h0.13_AOA8_W0.63 && ./Allmesh
 \end{verbatim}
 
 % ===========================================================================
@@ -302,6 +291,38 @@ front --- the region the whole study is about.}{meshgap}
 contact-patch refinement box is the fine square under the
 wheel.}{meshz}
 
+\subsection{Streamwise stations through the front wing}
+
+The $y$- and $z$-slices above cut the wheel; neither shows what the mesh does
+\emph{around the wing and its endplate}, which is where the vortex that drives
+this whole study is created. Two $x$-normal stations do. Both look
+downstream, so $y$ grows to the left and the symmetry plane is at the right
+edge.
+
+\figOrNote{mesh_slice_x_wing_mid}{0.95}{$x=\SI{-95}{mm}$, through the wing and
+the full endplate --- roughly mid-chord. The wing section is the horizontal
+void, the endplate the vertical one. Visible here: the L5--L6 shell that the
+wing's own surface levels produce, the L4/L5 distance refinement stepping
+outwards from both, and the fine patch wrapped around the endplate bottom
+edge at the ground. That last one comes from the
+\texttt{endplateBottomEdge} geometry entry (L6 within \SI{6}{mm}), not from a
+box, which is why it follows the edge across the parameter
+sweep.}{meshxwing}
+
+\figOrNote{mesh_slice_x_ep_wake}{0.95}{$x=\SI{-48}{mm}$, just behind the
+endplate trailing edge at \SI{-50.4}{mm} --- the station where the bottom-edge
+vortex is shed. No geometry is cut any more, so what is left is purely
+refinement: the L6 core at the ground where the vortex forms, and the
+\texttt{L5-vortex-inboard}/\texttt{outboard} boxes carrying it downstream.
+This is the figure to check when the parameter range is extended, because
+those two boxes are fixed and do not follow the
+geometry.}{meshxepwake}
+
+\figOrNote{mesh_wing_section}{0.86}{The wing section itself, on a spanwise
+slice at $y=\SI{50}{mm}$: inverted NACA 4412, suction side underneath. For
+scale, the chord is \SI{75}{mm} and the cells on the surface are
+\SI{0.586}{mm} (L5) escalating to \SI{0.293}{mm} (L6).}{meshwingsec}
+
 \subsection{Prism layers}
 
 Four layers from \SI{0.14}{mm} with expansion 1.3 (total \SI{0.87}{mm}) on
@@ -345,17 +366,18 @@ patch & faces & layers wanted & layers built & thickness [\%]\\
   incomplete layer coverage at sharp edges and where two layered surfaces
   meet. All three patches sit in L7 cells (\SI{0.146}{mm}), so the near-wall
   spacing is comparable to the layered regions anyway.
-\item The number to judge the near-wall treatment by is $y^+$
-  (section~\ref{sec:results}), not the layer count.
+\item The number to judge the near-wall treatment by is $y^+$, not the layer
+  count --- which means it cannot be judged yet. It is the first
+  thing to check once the case is solved (section~\ref{sec:finish}).
 \end{itemize}
 
 \subsection{Mesh quality}
 
-Quality limits are deliberately relaxed (\texttt{maxNonOrtho} 75,
-\texttt{maxInternalSkewness} 6, \texttt{minTetQuality} $-10^{30}$), carried
-over from the previous HELYX setup. Enforcing a positive tet quality with
-absolute layer thicknesses on curved surfaces costs most of the layer
-coverage.
+Quality limits are deliberately relaxed (\texttt{maxNonOrtho} 75 against a
+default of 65, \texttt{maxInternalSkewness} 6 against 4,
+\texttt{minTetQuality} $-10^{30}$, which disables the constraint). Enforcing a
+positive tet quality with absolute layer thicknesses on curved surfaces costs
+most of the layer coverage.
 
 \texttt{checkMesh} clean: \textbf{\checkMeshOk} (\nCheckMeshFail\ findings).
 \begin{itemize}
@@ -363,12 +385,16 @@ coverage.
 \end{itemize}
 
 \noindent
-These are the expected consequence of the relaxed limits. The solver runs
-stably on this mesh; if it ever diverges, \texttt{meshQualityDict} is the
-first thing to question.
+These are the expected consequence of the relaxed limits and are accepted in
+exchange for layer coverage. If the solve later diverges immediately,
+\texttt{meshQualityDict} is the first thing to question.
 
 % ===========================================================================
-\section{Physics and numerics}
+\section{Physics and numerics as configured}\label{sec:numerics}
+
+Nothing in this section has been run. It is the solver setup the mesh was
+built for, recorded here so the mesh choices --- the layer stack in
+particular --- can be judged against it.
 
 \begin{center}\small
 \begin{tabular}{@{}ll@{}}
@@ -399,111 +425,40 @@ $k$/$\omega$ transport is the usual reason residuals stall on a mesh of this
 kind, and the effect on the integrated forces is small. Momentum convection
 is second order.
 
-\paragraph{Differences against the previous HELYX setup.} Relevant whenever
-the two are compared:
+\paragraph{Two model limitations to carry forward.} Native OpenFOAM's
+\texttt{kOmegaSST} has neither of these, so both are absent by necessity, not
+by choice:
 \begin{itemize}
-\item \bad{No curvature correction} (HELYX used Menter--Smirnov). The
-  endplate and wheel vortex cores will diffuse somewhat faster.
-\item \bad{No separation fix} (HELYX used the Rumsey form). Separation onset
-  on the suction side may differ.
-\item The adaptive wall treatment \emph{is} reproduced, by the all-$y^+$ wall
-  functions above.
-\item HELYX ran a coupled solver pseudo-transiently; this is segregated and
-  steady, so iteration counts are not comparable.
+\item \bad{No curvature correction.} The endplate and wheel vortex cores will
+  diffuse somewhat faster than a curvature-corrected model would give.
+\item \bad{No separation fix.} Separation onset on the suction side may
+  differ.
 \end{itemize}
+The near-wall treatment is covered by the all-$y^+$ wall functions above, and
+the startup by \texttt{potentialFoam} initialisation.
 
 % ===========================================================================
-\section{Convergence}
+\section{Next step: the solve}\label{sec:finish}
 
-\figOrNote{conv_residuals}{0.95}{Initial residuals per SIMPLE iteration, with
-the \texttt{residualControl} thresholds marked.}{convres}
-
-\figOrNote{conv_forces}{0.95}{Force history. The grey band is the window
-averaged for the reported result.}{convf}
-
-\figOrNote{conv_forces_zoom}{0.95}{Settling of the total $C_L\!\cdot\!A$ over
-the final iterations.}{convfz}
-
-\paragraph{How to judge this.}
-\begin{itemize}
-\item \texttt{residualControl} satisfied: \textbf{\converged}.
-\item Final initial residuals: $p$ \resp, $U_x$ \resUx, $U_z$ \resUz,
-  $k$ \resk, $\omega$ \resomega.
-\item \textbf{The force spread matters more than the residual.} A converged
-  residual with $C_L\!\cdot\!A$ still swinging by several percent means an
-  unsteady flow being forced into a steady solve. Here the total spread over
-  the averaging window is \spreadTotal\,\%.
-\item Residual \emph{fields} are written as well, so a stalled case can be
-  opened in ParaView to see \emph{where} it will not settle.
-\end{itemize}
-
-% ===========================================================================
-\section{Results}\label{sec:results}
-
-\paragraph{Colour ranges are fixed, not auto-scaled.} The raw fields contain
-isolated extremes far outside the physical range --- measured on this build,
-$C_p$ down to $-32$, $C_pT$ up to $100$ and $|U|$ up to \SI{100}{m/s} against
-a \SI{10}{m/s} freestream. Those are single cells, not regions: the velocity
-figure below shows nothing at the top of its scale. Auto-scaling to them
-would flatten every plot, so the ranges are the physically meaningful ones
-and anything outside saturates.
-
-\figOrNote{res_umag}{0.95}{$|U|$ on the wheel-centre plane. Acceleration over
-the wheel crown, the separated wheel wake, and the wing wake below. Nothing
-reaches the top of the scale, which is how you tell the extreme values are
-isolated cells rather than a region.}{resumag}
-
-\figOrNote{res_cp_wing}{0.92}{$C_p$ seen from below: wing suction side and
-the underside of the wheel.}{rescp}
-
-\figOrNote{res_cp_wing_top}{0.92}{$C_p$ seen from above: wing pressure side
-and the wheel stagnation region.}{rescptop}
-
-\figOrNote{res_cpt_slice}{0.95}{Total pressure coefficient on streamwise
-slices. $C_pT\approx1$ in the freestream; the dark regions are total-pressure
-loss, and the discrete cores downstream are the endplate and wheel
-vortices.}{rescpt}
-
-\figOrNote{res_q}{0.92}{Q-criterion isosurface, coloured by streamwise
-vorticity --- the endplate and wheel vortex systems.}{resq}
-
-\figOrNote{res_tau}{0.92}{Wall shear stress magnitude on the suction side.
-Dark bands are separation lines.}{restau}
-
-\figOrNote{res_yplus}{0.92}{$y^+$ on the wall patches.}{resyplus}
-
-\paragraph{$y^+$, the check that decides whether the wall treatment holds.}
-Mean values: wing \yplusWing, wheel \yplusWheel. Per-patch averages on this
-build sit between 2.3 and 4 on the wing and between 2.9 and 3.7 on the wheel
-tread, shoulders and sidewall --- the range the layer stack was sized for.
-Two outliers, both expected:
-\begin{itemize}
-\item \texttt{wheel-plinth} averages 8.7. It carries no prism layers, so the
-  first cell is a bulk cell.
-\item \texttt{ground} peaks at \yplusMax, in the contact-patch region where
-  the belt passes under the wheel. Local, and not where the forces come from.
-\end{itemize}
-
-% ===========================================================================
-\section{Finishing this report}\label{sec:finish}
-
-The solve in this build stopped at \nIter\ of \nIterations\ iterations. To
-produce the final version:
+The mesh is finished and the case is configured; the solve has not been
+started. From the meshed case:
 
 \begin{verbatim}
 cd RANS_Simulations/S1.42_h0.13_AOA8_W0.63
-./Allsolve --continue          # resumes from the latest written time
-./Allpost --summary            # refreshes results.json
+./Allsolve                     # potentialFoam, then simpleFoam
+./Allpost --summary            # writes results.json / results.txt
 
 cd ../../report
-./build.sh                     # regenerates every figure, rebuilds the PDF
+./build.sh                     # regenerates the figures, rebuilds the PDF
 \end{verbatim}
 
 \begin{itemize}
-\item \texttt{--continue} resumes rather than restarting:
-  \texttt{startFrom} is \texttt{latestTime} in \texttt{controlDict}.
-\item The run stops by itself once \texttt{residualControl} is met, which is
-  usually well before the configured \nIterations.
+\item \texttt{./Allsolve} is resumable: \texttt{startFrom} is
+  \texttt{latestTime} in \texttt{controlDict}, so a second call continues
+  rather than restarting.
+\item The run stops by itself once \texttt{residualControl} is met
+  ($p$, $U$: $10^{-5}$; $k$, $\omega$: $10^{-4}$), which should be well
+  before the configured \nIterations\ iterations.
 \item To stop it cleanly and keep the state resumable, set
   \texttt{stopAt writeNow} in \texttt{system/controlDict} --- the solver
   writes the current state and exits. \texttt{runTimeModifiable} is on, so it
@@ -512,52 +467,65 @@ cd ../../report
 \item \texttt{build.sh --no-figures} rebuilds only the text, which is quick.
 \end{itemize}
 
+\paragraph{What to check first, once there is a solution.} In this order:
+$y^+$ against the design value of $\approx 2.5$ the layer stack was sized
+for; then the spread of $C_L\!\cdot\!A$ over the averaging window, which
+matters more than the residual --- a converged residual with the forces still
+swinging by several percent means an unsteady flow being forced into a steady
+solve.
+
 \noindent
-Nothing in the report is typed by hand: all numbers come from the case's
-\texttt{results.json} and solver logs via
-\texttt{report/scripts/make\_tex\_data.py}, so a rebuild picks up the final
-solution automatically.
+Nothing in this report is typed by hand: every number comes from the case's
+logs via \texttt{report/scripts/make\_tex\_data.py}, so a rebuild picks the
+mesh up automatically.
 
 % ===========================================================================
 \section{Assessment}
 
-\paragraph{What supports trusting these numbers.}
+\paragraph{What supports trusting this mesh.}
 \begin{itemize}
 \item \ok{Background mesh exactly as designed} (\nBaseCells\ cells), cubic,
-  dividing the domain without remainder.
-\item \ok{Refinement reproduces the previous validated HELYX setup}
-  level for level, and the final cell count agrees with it closely.
+  dividing the domain without remainder --- which is what makes the
+  level-to-cell-size table hold.
+\item \ok{Refinement distribution is as intended}, level for level, with the
+  share per level in the table in section~5 and no level running into the
+  \texttt{maxGlobalCells} cap.
 \item \ok{Patch groups resolve correctly} ---
   \texttt{patchSummary} confirms \texttt{noSlip} on the wing,
   \texttt{rotatingWallVelocity} on the wheel and the belt velocity on the
-  plinth.
+  plinth, so the boundary conditions address the patches they are meant to.
 \item \ok{Wheel rotation sign verified} analytically against the belt speed.
-\item \ok{Divergence-free initialisation} via \texttt{potentialFoam}.
-\item \ok{$y^+$ in the design range} of the chosen wall functions.
+\item \ok{Endplate-edge refinement follows the geometry}, via the extracted
+  \texttt{endplateBottomEdge} surface rather than a fixed box, so it holds
+  across the parameter sweep.
 \end{itemize}
 
 \paragraph{What to be careful about.}
 \begin{itemize}
-\item \bad{No curvature correction and no separation fix} relative to
-  HELYX. Expect faster vortex diffusion and possibly different separation
-  onset.
 \item \bad{Relaxed mesh quality limits} leave genuinely poor cells in the
   mesh (\texttt{minTetQuality} disabled). Accepted in exchange for layer
-  coverage.
+  coverage, but it is the first thing to question if the solve diverges.
 \item \bad{Three patches without prism layers}, see section~5.
 \item \bad{Two duplicate triangles} in the wing STL.
+\item \bad{No curvature correction and no separation fix} in the configured
+  turbulence model. Expect faster vortex diffusion and possibly a different
+  separation onset than a model with both would give.
 \item \bad{Steady RANS on a flow that may not be steady.} At high angle of
-  attack or low ride height, check the force spread before quoting a number.
-\item The two local refinement boxes that stand in for HELYX's per-region
-  distance refinement are \bad{positioned for this geometry} and do not
-  follow the parameters. Re-check them before extending the sweep.
+  attack or low ride height, check the force spread before quoting any
+  number the solve produces.
+\item \texttt{L5-vortex-inboard} and \texttt{L5-vortex-outboard} are
+  \bad{fixed boxes positioned for this geometry} and do not follow the
+  parameters. Re-check them before extending the sweep.
+\item \bad{No solution, so no $y^+$ yet.} The layer stack is sized for
+  $y^+\approx 2.5$ (section~5), but that is a design target, not a
+  measurement. It is the one number that can retrospectively invalidate the
+  near-wall part of this mesh.
 \end{itemize}
 
 \vfill
 \noindent\footnotesize
 Generated from \texttt{\caseName}. Figures by \texttt{pvbatch}
-(ParaView) and \texttt{matplotlib}; numbers by
-\texttt{report/scripts/make\_tex\_data.py} from the case's
-\texttt{results.json} and solver logs.
+(ParaView); numbers by \texttt{report/scripts/make\_tex\_data.py} from the
+case's meshing logs.
 
 \end{document}

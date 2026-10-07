@@ -1,7 +1,7 @@
 # 7. Case reference
 
-Every file in the case template, what it does, and — where it matters — what
-it replaced in the HELYX setup this project was converted from.
+Every file in the case template, what it does, and — where it matters — why
+it is set the way it is.
 
 Read this when you need to change the setup and want to know what else moves
 with it.
@@ -84,8 +84,7 @@ wheelOmega = −UInf/R,  R = 0.585c = 0.043875    = −227.92
 The reference area is 1 m², not the wing planform area, so `forceCoeffs`
 reports **CL·A and CD·A** rather than CL and CD. That is the quantity the
 Diasinos papers tabulate, and it sidesteps the question of which area to use
-when S/c varies across the campaign. Carried over unchanged from the HELYX
-setup, where `smGlobals::referenceValues::area` was 1 for the same reason.
+when S/c varies across the campaign.
 
 ---
 
@@ -96,21 +95,20 @@ setup, where `smGlobals::referenceValues::area` was 1 for the same reason.
 Domain `x −0.7125…1.18125`, `y 0…0.675`, `z 0…0.6375` m, split
 `101 × 36 × 34` → 123 624 cubic cells of 18.75 mm.
 
-Carried over from HELYX `baseMesh::BB*` (which was in mm) and
-`meshOptionsGeneral::ManualLevel0EdgeLength 18.75`. The cell count matches the
-HELYX mesh log exactly.
+The domain bounds are designed in mm and written here in metres; the base edge
+length of 18.75 mm is what makes the cells cubic.
 
-Patch renaming: HELYX meshed with generic `minX`/`maxX`/… names and then ran
-`renamePatches`. blockMesh names them directly instead:
+`blockMeshDict` names the boundary patches directly, so nothing has to be
+renamed after meshing:
 
-| HELYX | here | type |
+| face | patch | type |
 |---|---|---|
-| `minX` → `inlet-main` | `inlet` | patch |
-| `maxX` → `outlet-main` | `outlet` | patch |
-| `minY` → `symmetry-plane` | `symmetry` | symmetry |
-| `maxY` → `tu-side-slip` | `side` | patch (slip) |
-| `minZ` → `tu-grd-moving` | `ground` | wall |
-| `maxZ` → `tu-sky-slip` | `sky` | patch (slip) |
+| min x | `inlet` | patch |
+| max x | `outlet` | patch |
+| min y | `symmetry` | symmetry |
+| max y | `side` | patch (slip) |
+| min z | `ground` | wall |
+| max z | `sky` | patch (slip) |
 
 `side` and `sky` became `patch` rather than `wall` deliberately: as walls they
 would enter the `meshWave` wall-distance field that kOmegaSST blends on, and
@@ -118,65 +116,71 @@ appear in force-integration groups.
 
 ### `snappyHexMeshDict`
 
-See [03_meshing.md](03_meshing.md) for the levels. The mapping from the HELYX
-`.bcm`:
+See [03_meshing.md](03_meshing.md) for the levels. Where each piece of the
+refinement specification lives:
 
-| HELYX | here |
+| intent | entry |
 |---|---|
-| `<patch>@profile::RefLevelMin/Max` | `refinementSurfaces/<surface>/regions/<region>/level (min max)` |
-| `RegionRefinementLevels ((15.0 5) (30.0 4))` (mm) | `refinementRegions/<surface> { mode distance; levels ((0.015 5) (0.030 4)); }` |
-| `volRef::List` boxes | `geometry` `searchableBox` + `refinementRegions ... mode inside` |
-| `Curvature <n>` (cells across curvature) | **no equivalent**; approximated by the min/max level pair plus `resolveFeatureAngle 30` |
-| `FeatureRefineAngle` | `resolveFeatureAngle` (global, not per patch) |
-| `LayersNLayers 4` | `addLayersControls/layers/"wing-.*"/nSurfaceLayers 4` |
-| `LayersFirstLayerThickness 0.14` (mm, absolute) | `firstLayerThickness 0.00014` with `relativeSizes false` |
-| `LayersExpRatio 1.3` | `expansionRatio 1.3` |
-| `CustomHHMDict` minZ override | `layers/ground { nSurfaceLayers 3; firstLayerThickness 0.00025; }` |
-| `meshOptionsQuality::*` | `meshQualityDict` |
-| `meshOptionsSnapControls::*` | `snapControls` (small subset; most HELYX knobs do not exist) |
-| naming-convention block (`#BEGIN NC`) | `patchInfo { type wall; inGroups (...); }` per region |
+| per-region surface level | `refinementSurfaces/<surface>/regions/<region>/level (min max)` |
+| distance refinement around a body | `refinementRegions/<surface> { mode distance; levels ((0.015 5) (0.030 4)); }` |
+| volume boxes | `geometry` `searchableBox` + `refinementRegions ... mode inside` |
+| feature escalation | `resolveFeatureAngle 30` (global, not per patch) |
+| layer count | `addLayersControls/layers/"wing-.*"/nSurfaceLayers 4` |
+| first layer thickness | `firstLayerThickness 0.00014` with `relativeSizes false` |
+| layer growth | `expansionRatio 1.3` |
+| ground override | `layers/ground { nSurfaceLayers 3; firstLayerThickness 0.00025; }` |
+| quality limits | `meshQualityDict` |
+| patch names and groups | `patchInfo { type wall; inGroups (...); }` per region |
 
-#### Two things that could not be translated
+#### Two things snappyHexMesh cannot express directly
 
-**1. Per-region distance refinement.** HELYX refined to L6 within 3 mm of
-`wing-ep-bottom` and L7 within 5 mm of `wheel-plinth`. snappyHexMesh supports
-distance refinement only around a whole geometry entry, not one region of it.
-Replaced by two explicit boxes:
+**1. Per-region distance refinement.** The endplate shedding edge
+(`wing-endplate_bottom`) wants a distance shell around it, but snappyHexMesh
+refines by distance only around a whole geometry entry, never around one
+region of it.
+
+The way around it: `Allmesh` extracts that one region into its own file with
+`surfaceSplitByPatch`, and `snappyHexMeshDict` adds it as a geometry entry
+(`endplateBottomEdge`) used **only** in `refinementRegions` — L6 within 6 mm,
+L5 within 30 mm. Because it is the real geometry, the refinement follows the
+edge for any span, ride height or angle of attack. **Use the same trick for
+any other region that needs distance refinement; do not go back to a fixed
+box.**
+
+Two refinements are still fixed boxes, and they are the thing to re-check when
+extending the parameter range:
 
 ```
-L6-endplate-bottom-edge   (-0.145 0.095 0.004) .. (-0.048 0.112 0.016)
-L7-contact-patch          (-0.050 0.070 0.000) .. ( 0.050 0.122 0.008)
+L5-vortex-inboard    the downstream trajectory of the inboard vortex
+L5-vortex-outboard   the same, outboard
 ```
 
-Same intent, different shape — a box instead of a shell following the surface.
-**These boxes are positioned for the baseline geometry and do not follow the
-parameters.** At a very different ride height or wheel width they need
-repositioning. This is the main thing to re-check when extending the sweep.
+They cover where the vortex *goes*, not where it is created, and they are
+positioned for the baseline geometry.
 
-**2. The `Curvature` setting.** HELYX refined by number of cells across a
-curvature radius, per patch (8 on the wing surfaces, 18 on the TE, 12 on the
-wheel). snappyHexMesh has no such control — it escalates from min to max level
-where it sees features sharper than the global `resolveFeatureAngle`. The
-min/max pairs were chosen to bracket the same cell sizes, but the *distribution*
-of refinement over a curved surface will differ.
+**2. Refinement across a curvature radius.** There is no "n cells across the
+local curvature radius" control. snappyHexMesh escalates from the min to the
+max surface level where it sees a feature sharper than the global
+`resolveFeatureAngle`. The min/max pairs are chosen to bracket the cell sizes
+the curvature needs, but the *distribution* of refinement over a curved
+surface is coarser-grained than a true curvature criterion would give.
 
 ### `meshQualityDict`
 
-Starts from `#includeEtc "caseDicts/meshQualityDict"`, then relaxes it as
-HELYX did: `maxNonOrtho 75`, `maxInternalSkewness 6`, `minFaceWeight 0.05`,
+Starts from `#includeEtc "caseDicts/meshQualityDict"`, then relaxes it:
+`maxNonOrtho 75`, `maxInternalSkewness 6`, `minFaceWeight 0.05`,
 `minVolRatio 1e-4`, `minDeterminant 1e-4`, `minTwist 0.05`,
 `minTetQuality -1e30`.
 
 `minTetQuality -1e30` is the consequential one: it disables the tet-quality
 constraint. With absolute layer thicknesses on curved surfaces, enforcing it
-costs most of the layer coverage. HELYX used the same value.
+costs most of the layer coverage.
 
 ### `surfaceFeatureExtractDict`
 
 `includedAngle 150` on both STLs, `openEdges yes`, `nonManifoldEdges no`.
-Replaces HELYX's `GeometryFeatureLines`/`StringFeatures`. Produces the
-`.eMesh` files that `explicitFeatureSnap` uses to keep the blunt TE and the
-endplate edges sharp.
+Produces the `.eMesh` files that `explicitFeatureSnap` uses to keep the blunt
+TE and the endplate edges sharp.
 
 Safe because both STLs are vertex-welded (1106 vertices for 1142 wing
 triangles), so dihedral angles are well defined.
@@ -184,8 +188,8 @@ triangles), so dihedral angles are well defined.
 ### `decomposeParDict`
 
 `method scotch`, `numberOfSubdomains` overwritten by the run scripts from
-`NP`. HELYX used `ptscotch` for the same reason: no geometric hints needed and
-it balances a locally refined mesh well.
+`NP`. Chosen because it needs no geometric hints and balances a locally
+refined mesh well, where `simple` or `hierarchical` would not.
 
 ---
 
@@ -193,44 +197,43 @@ it balances a locally refined mesh well.
 
 ### `constant/turbulenceProperties`
 
-`kOmegaSST`. HELYX used `kOmegaSSTawtSM`, which added:
+`kOmegaSST`, with `kProduction Menter2003` as OpenFOAM's standard. Two model
+extensions that an external-aero vortex case would benefit from do not exist
+natively and are therefore absent:
 
-| HELYX feature | status |
+| extension | status |
 |---|---|
-| adaptive wall treatment (`awt`) | **reproduced** via all-y⁺ wall functions |
-| Menter–Smirnov curvature correction | **lost** — vortex cores diffuse faster |
-| Rumsey separation fix (`SFRumsey`) | **lost** — separation onset may differ |
-| `nuRamp*` startup ramping | **lost** — replaced by `potentialFoam` initialisation |
-| `kProduction Menter2003` | standard in OpenFOAM's kOmegaSST |
+| curvature correction | **not available** — vortex cores diffuse faster |
+| separation fix | **not available** — separation onset may differ |
 
-The two losses are the main physics difference against the old results and
-should be stated whenever the two are compared.
+The near-wall treatment is covered by the all-y⁺ wall functions below, and the
+startup is handled by `potentialFoam` initialisation rather than a viscosity
+ramp.
 
 ### `0.orig/*` boundary conditions
 
-| HELYX type | native type | field |
+| field | condition | where |
 |---|---|---|
-| `wallVelocity` | `noSlip` | U on wing |
-| `translatingWallVelocity` | `fixedValue $groundVelocity` | U on ground, plinth |
-| `rotatingWallVelocity` | `rotatingWallVelocity` | U on wheel |
-| `slip` | `slip` | U on side, sky |
-| `symmetry` | `symmetry` | all, on the symmetry plane |
-| `zeroGradient` | `zeroGradient` | p on walls |
-| `turbulentIntensityKineticEnergyInlet` | same | k inlet |
-| `turbulentMixingLengthFrequencyInlet` | same | omega inlet |
-| `kqRWallFunction` | **`kLowReWallFunction`** | k on walls |
-| `awtOmegaWallFunction` | **`omegaWallFunction`** | omega on walls |
-| `awtNutWallFunction` | **`nutUSpaldingWallFunction`** | nut on walls |
+| U | `noSlip` | wing |
+| U | `fixedValue $groundVelocity` | ground, plinth |
+| U | `rotatingWallVelocity` | wheel tread, shoulders, sidewall |
+| U | `slip` | side, sky |
+| all | `symmetry` | symmetry plane |
+| p | `zeroGradient` | walls |
+| k | `turbulentIntensityKineticEnergyInlet` | inlet |
+| omega | `turbulentMixingLengthFrequencyInlet` | inlet |
+| k | **`kLowReWallFunction`** | walls |
+| omega | **`omegaWallFunction`** | walls |
+| nut | **`nutUSpaldingWallFunction`** | walls |
 
 The three wall functions are matched to the y⁺ ≈ 2.5 layer stack. They are
 the all-y⁺ continuous variants and must change together with the layer
-thickness. `kqRWallFunction` has no native counterpart.
+thickness.
 
 ### `fvSchemes`
 
-HELYX ran a coupled solver (`helyxCoupled`, `AMGSM` on a `Up` block) with its
-own scheme set. This is a segregated SIMPLEC run, so the scheme list is a
-conventional steady external-aero one rather than a translation:
+A segregated SIMPLEC run, with a conventional steady external-aero scheme
+set:
 
 ```
 ddtSchemes      steadyState
@@ -251,36 +254,34 @@ relaxation      U 0.9, k/omega 0.7
 residualControl p 1e-5, U 1e-5, k/omega 1e-4
 ```
 
-`residualControl` replaces the HELYX `convergence` block (moving average of
-`all-cz` with a variation criterion). The native mechanism is residual-based
-rather than force-based, which is why `collect_results.py` also reports the
-**force spread** over the averaging window — a residual criterion alone can
-declare success on a case whose forces are still swinging.
+`residualControl` is residual-based, not force-based, which is why
+`collect_results.py` also reports the **force spread** over the averaging
+window — a residual criterion alone can declare success on a case whose forces
+are still swinging.
 
 ### `controlDict`
 
 `application simpleFoam`, `startFrom latestTime`, `endTime $nIterations`,
 `deltaT 1`, `purgeWrite 2`.
 
-For a steady SIMPLE run "time" is the iteration counter. HELYX ran a
-pseudo-transient `timedHelyxCoupled` with `deltaT 0.025` to `endTime 10`
-(= 400 steps); iteration counts are not comparable between the two.
+For a steady SIMPLE run "time" is the iteration counter, which is why
+`deltaT` is 1 and `endTime` is an iteration count.
 
 ---
 
 ## 7.5 Function objects
 
-| HELYX | native |
+| what | where |
 |---|---|
-| `smDict::forces` with `groups { all wing wheel }` | three `forceCoeffs` objects in `system/forceCoeffs` |
-| `monitors.csv`, `residuals.csv`, `extremeValues.csv` | `postProcessing/*/0/*.dat` + `results.json` |
-| `additionalFields` + `post-c46-v12.1.xml` | `system/fieldDerived` |
-| `pressureCoeff` | `pressure`, `mode staticCoeff` → `Cp` |
-| `totalPressureCoeff` | `pressure`, `mode totalCoeff` → `CpT` |
-| `vorticity-magnitude` | `vorticity` (vector; take the magnitude when plotting) |
-| `skinFrictionCoefficient` | `wallShearStress` |
-| `yPlus` | `yPlus` |
-| `normalizedHelicity`, `helicitySignedNormalizedQ`, `k-factor` | no equivalent; `Q` substituted |
+| forces split `all` / `wing` / `wheel` | three `forceCoeffs` objects in `system/forceCoeffs` |
+| monitors and residual history | `postProcessing/*/0/*.dat`, condensed into `results.json` |
+| derived fields | `system/fieldDerived` |
+| pressure coefficient | `pressure`, `mode staticCoeff` → `Cp` |
+| total pressure coefficient | `pressure`, `mode totalCoeff` → `CpT` |
+| vorticity | `vorticity` (vector; take the magnitude when plotting) |
+| skin friction | `wallShearStress` |
+| wall spacing | `yPlus` |
+| vortex identification | `Q` |
 
 The shared `forceCoeffs` settings live in `include/forceCoeffsBase` rather
 than as a base dictionary inside the `functions` block. Anything that is a

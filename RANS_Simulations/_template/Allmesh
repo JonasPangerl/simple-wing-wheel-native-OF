@@ -186,7 +186,7 @@ CELLS=$(grep -m1 -oE '^[[:space:]]*cells:[[:space:]]*[0-9]+' log.checkMesh \
           | grep -oE '[0-9]+' || true)
 [ -n "${CELLS:-}" ] && log "final mesh: ${CELLS} cells"
 
-# Layer coverage is the number worth knowing. The HELYX mesh reached 100 %.
+# Layer coverage is the number worth knowing.
 grep -iE 'layer coverage|overall coverage' log.snappyHexMesh \
     | tail -3 | sed 's/^/  /' || true
 

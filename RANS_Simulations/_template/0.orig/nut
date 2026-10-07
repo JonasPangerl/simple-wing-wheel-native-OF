@@ -43,8 +43,7 @@ boundaryField
 
     // nutUSpaldingWallFunction uses Spalding's single continuous law of the
     // wall, so it is valid from y+ < 1 through the buffer layer into the log
-    // layer. That is what makes the y+ ~ 2.5 layer stack defensible, and it is
-    // the closest native equivalent to HELYX's awtNutWallFunction.
+    // layer. That is what makes the y+ ~ 2.5 layer stack defensible.
     //
     // It also handles moving walls correctly, which matters here: it works on
     // the velocity relative to the wall, so the belt and the spinning wheel

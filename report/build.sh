@@ -7,9 +7,9 @@
 #   ./build.sh --no-figures         compile only, reuse existing figures
 #   ./build.sh --figures-only       generate figures, do not compile
 #
-# Figures come from pvbatch (ParaView) and matplotlib. A figure that cannot
-# be produced leaves a visible placeholder in the PDF rather than breaking
-# the build, so a partial run still gives a readable report.
+# Figures come from pvbatch (ParaView). A figure that cannot be produced
+# leaves a visible placeholder in the PDF rather than breaking the build, so a
+# partial run still gives a readable report.
 # ===========================================================================
 set -uo pipefail
 cd "${0%/*}" || exit 1
@@ -66,19 +66,6 @@ if [ "$DO_FIGURES" -eq 1 ]; then
         echo "  SKIPPED: no pvbatch, or no mesh in ${CASE}"
     fi
 
-    step "Result figures"
-    if [ -n "$PVBATCH" ] && [ -x "$PVBATCH" ] \
-       && [ -d "${CASE}/postProcessing" ]; then
-        "$PVBATCH" --force-offscreen-rendering scripts/fig_results.py \
-            --case "$CASE" --out "$FIG_DIR" \
-            || echo "  WARNING: result figures failed"
-    else
-        echo "  SKIPPED: no solution in ${CASE}"
-    fi
-
-    step "Convergence plots"
-    python3 scripts/fig_convergence.py --case "$CASE" --out "$FIG_DIR" \
-        || echo "  WARNING: convergence plots failed"
 fi
 
 step "Report data"
@@ -103,9 +90,9 @@ if [ "$DO_LATEX" -eq 1 ]; then
         exit 1
     fi
 
-    # Shrink the PDF. 28 figures at 1600 px come to ~10 MB, which is a lot
-    # to carry in a git repository for every rebuild; 150 dpi keeps the mesh
-    # close-ups fully legible at about a seventh of the size.
+    # Shrink the PDF. The figures are 1600 px each and add up to several MB,
+    # which is a lot to carry in a git repository for every rebuild; 150 dpi
+    # keeps the mesh close-ups fully legible at a fraction of the size.
     if command -v gs > /dev/null 2>&1; then
         before=$(du -h report.pdf | cut -f1)
         if gs -sDEVICE=pdfwrite -dCompatibilityLevel=1.5 \

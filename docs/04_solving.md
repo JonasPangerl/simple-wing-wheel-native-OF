@@ -116,14 +116,14 @@ the ground plane and moves with the belt.
 
 `constant/turbulenceProperties`: plain **kOmegaSST**.
 
-HELYX used `kOmegaSSTawtSM` — adaptive wall treatment, Menter–Smirnov
-curvature correction, Rumsey separation fix. None of that exists natively.
-What this means for comparisons:
+Native OpenFOAM offers no curvature correction and no separation fix for
+kOmegaSST, so two limitations come with it:
 
 - **no curvature correction** → endplate and wheel vortex cores diffuse
   somewhat faster
 - **no separation fix** → separation onset on the suction side may differ
-- the **adaptive wall treatment is reproduced**, via the wall functions below
+
+The near-wall treatment is handled by the wall functions below.
 
 ### Wall functions
 
@@ -131,18 +131,20 @@ The layer stack targets y⁺ ≈ 2.5 — the buffer layer, where pure log-law wa
 functions are invalid and pure low-Re resolution is not available either. The
 all-y⁺ continuous variants are therefore mandatory, not stylistic:
 
-| field | type | HELYX equivalent |
-|---|---|---|
-| `nut` | `nutUSpaldingWallFunction` | `awtNutWallFunction` |
-| `k` | `kLowReWallFunction` | `kqRWallFunction` |
-| `omega` | `omegaWallFunction` | `awtOmegaWallFunction` |
+| field | type |
+|---|---|
+| `nut` | `nutUSpaldingWallFunction` |
+| `k` | `kLowReWallFunction` |
+| `omega` | `omegaWallFunction` |
 
 `nutUSpaldingWallFunction` uses Spalding's single continuous law, valid from
 y⁺ < 1 into the log layer, and works on velocity relative to the wall — which
 matters here, with a moving belt and a spinning wheel.
 
-`kqRWallFunction` has no native counterpart; `kLowReWallFunction` is the
-all-y⁺ choice.
+`kLowReWallFunction` is the all-y⁺ choice for `k`: it blends the viscous and
+log-layer forms, where OpenFOAM's `kqRWallFunction` is a plain zero-gradient
+condition that leaves the near-wall `k` profile to the mesh — fine at log-law
+y⁺, not at 2.5.
 
 **If you change the layer thickness, revisit these.** They are a matched pair.
 

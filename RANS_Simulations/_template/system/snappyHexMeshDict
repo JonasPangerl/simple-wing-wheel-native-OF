@@ -22,10 +22,9 @@ FoamFile
 // Reference: base cell 0.01875 m, so refinement level n gives
 //   L4 1.172 mm   L5 0.586 mm   L6 0.293 mm   L7 0.146 mm
 //
-// The per-region levels below are a direct translation of the refinement
-// table from the previous HELYX setup. See docs/07_case_reference.md for the
-// full setting-by-setting mapping, including the two places where
-// snappyHexMesh cannot express what HELYX did.
+// See docs/07_case_reference.md for the reasoning behind the per-region
+// levels below, and for the two places where snappyHexMesh cannot express
+// the refinement directly.
 
 castellatedMesh true;
 snap            true;
@@ -70,8 +69,7 @@ geometry
         }
     }
 
-    // Volume refinement boxes, carried over 1:1 from the HELYX volRef list
-    // (which was given in mm; divided by 1000 here).
+    // Volume refinement boxes. Designed in mm, divided by 1000 here.
     L2-farfield
     {
         type    searchableBox;
@@ -159,10 +157,10 @@ castellatedMeshControls
 {
     maxLocalCells       4000000;
 
-    // The HELYX mesh for the baseline case finished at 18.7 M cells. This cap
-    // is deliberately well above that: snappyHexMesh counts cells *before*
-    // removing the part outside the fluid, so the cap must leave headroom or
-    // refinement is cut off mid-level.
+    // The baseline case lands around 19 M cells. This cap is deliberately
+    // well above that: snappyHexMesh counts cells *before* removing the part
+    // outside the fluid, so the cap must leave headroom or refinement is cut
+    // off mid-level.
     maxGlobalCells      40000000;
 
     // Stop a refinement loop once fewer than this many cells are still being
@@ -244,8 +242,8 @@ castellatedMeshControls
     // ---------------------------------------------------------------------
     refinementRegions
     {
-        // Distance refinement around the bodies: the HELYX 'default' entry
-        // asked for L5 within 15 mm and L4 within 30 mm.
+        // Distance refinement around the bodies: L5 within 15 mm and L4
+        // within 30 mm.
         wing
         {
             mode    distance;
@@ -313,9 +311,9 @@ snapControls
 // ---------------------------------------------------------------------------
 addLayersControls
 {
-    // Absolute thicknesses, in metres. HELYX used an absolute first layer of
-    // 0.14 mm with expansion 1.3 over 4 layers, which is what is reproduced
-    // here: 0.140, 0.182, 0.237, 0.308 mm -> 0.866 mm total.
+    // Absolute thicknesses, in metres: a first layer of 0.14 mm with
+    // expansion 1.3 over 4 layers, i.e. 0.140, 0.182, 0.237, 0.308 mm
+    // -> 0.866 mm total.
     //
     // At U = 10 m/s and c = 75 mm the first cell centre sits at y+ ~ 2.5,
     // i.e. in the buffer layer. That is why the wall functions in 0.orig are
@@ -366,8 +364,7 @@ addLayersControls
             firstLayerThickness 0.0001;
         }
 
-        // Ground plane: coarser first layer, fewer layers. Carried over from
-        // the HELYX CustomHHMDict override for the minZ patch.
+        // Ground plane: coarser first layer, fewer layers.
         ground
         {
             nSurfaceLayers      3;

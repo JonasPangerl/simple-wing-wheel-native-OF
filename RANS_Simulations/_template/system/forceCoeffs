@@ -1,6 +1,6 @@
 /*--------------------------------*- C++ -*----------------------------------*\
-| Force coefficients, split the same three ways the HELYX setup reported      |
-| them: wing only, wheel only, and both together.                             |
+| Force coefficients, split three ways: wing only, wheel only, and both      |
+| together.                                                                   |
 |                                                                             |
 | Output: postProcessing/forceCoeffs_<group>/0/coefficient.dat                 |
 |                                                                             |
