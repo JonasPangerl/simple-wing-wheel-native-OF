@@ -4,9 +4,9 @@
 # HOW TO USE
 #   1. Open the case in the ParaView GUI and make an x-normal slice.
 #   2. Zoom/pan until the view shows EXACTLY the framing you want.
-#   3. View -> Python Shell, then:
-#          exec(open('/netappfs/scratch/CFD/develop/jpa/simple_wing_wheel/RANS_Simulations/postprocessing/dump_camera.py').read())
-#   4. Send me the printed block, or paste it straight into slices.yaml.
+#   3. View -> Python Shell, then (adjust the path to your checkout):
+#          exec(open('<repo>/RANS_Simulations/postprocessing/dump_camera.py').read())
+#   4. Paste the printed block straight into slices.yaml.
 #
 # Why this is needed: a screenshot of the Adjust Camera dialog is not enough. In
 # perspective mode the visible extent depends on view angle AND distance, and

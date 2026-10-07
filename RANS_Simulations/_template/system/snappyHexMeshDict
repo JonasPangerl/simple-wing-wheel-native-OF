@@ -156,7 +156,17 @@ castellatedMeshControls
     // refinement is cut off mid-level.
     maxGlobalCells      40000000;
 
-    minRefinementCells  10;
+    // Stop a refinement loop once fewer than this many cells are still being
+    // selected. Measured on the baseline case: with the tutorial value of 10
+    // the shell-refinement loop ran all 100 of its allowed iterations, the
+    // last ~55 of them adding only 14-17 cells each - about 8 minutes of the
+    // 17 minute mesh for roughly 1000 cells out of 26.5 M.
+    //
+    // 1000 is 0.004 % of the final mesh, far below anything that matters,
+    // and the early iterations select ~1 M cells so real refinement is never
+    // cut short.
+    minRefinementCells  1000;
+
     maxLoadUnbalance    0.10;
     nCellsBetweenLevels 3;
 
