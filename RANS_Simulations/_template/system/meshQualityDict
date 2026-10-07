@@ -47,4 +47,34 @@ minTwist            0.05;
 minTetQuality       -1e30;
 
 
+// ---------------------------------------------------------------------------
+// Relaxed limits for the late layer-addition iterations
+// ---------------------------------------------------------------------------
+// addLayersControls/nRelaxedIter in snappyHexMeshDict switches to these after
+// 20 layer iterations, so that layers which only slightly violate the limits
+// above are kept rather than discarded.
+//
+// REQUIRED whenever nRelaxedIter is set. snappyLayerDriver does a plain
+// subDict("relaxed") and the run aborts with
+//   Entry 'relaxed' not found in dictionary "meshQualityControls"
+// if it is missing - and it aborts *after* the layers have been built, so
+// around 40 minutes of meshing are lost.
+//
+// This block REPLACES the settings above rather than being merged with them,
+// so it is written out in full instead of relying on parent-scope lookup.
+relaxed
+{
+    #includeEtc "caseDicts/meshQualityDict"
+
+    maxNonOrtho         80;
+    maxInternalSkewness 8;
+    maxBoundarySkewness 25;
+    minFaceWeight       0.02;
+    minVolRatio         1e-5;
+    minDeterminant      1e-5;
+    minTwist            0.02;
+    minTetQuality       -1e30;
+}
+
+
 // ************************************************************************* //
