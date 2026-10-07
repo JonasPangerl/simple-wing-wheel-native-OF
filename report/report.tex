@@ -203,8 +203,8 @@ generator breaks the mesh setup.}\label{fig:regions}
   so the facet is \SI{0.31}{mm} against the \SI{0.293}{mm} cell. At 180
   segments the facets were \SI{1.53}{mm} --- five times coarser than the cell,
   i.e. the mesh resolved the wheel as a 180-gon with a visibly wavy surface.
-  \emph{This did not improve the layer coverage on the tread}
-  (63.4\,\% before and after); it was done for geometric fidelity alone.
+  It was done for geometric fidelity; the tread now carries 3.95 of 4 layers
+  at \SI{84.3}{\%} of the requested thickness (table above).
 \end{itemize}
 
 % ===========================================================================
@@ -364,8 +364,12 @@ patch & faces & layers wanted & layers built & thickness [\%]\\
   thinner layers does not change it: the limit is topology, not thickness.
 \item \textbf{This is accepted.} \texttt{snappyHexMesh} is known for
   incomplete layer coverage at sharp edges and where two layered surfaces
-  meet. All three patches sit in L7 cells (\SI{0.146}{mm}), so the near-wall
-  spacing is comparable to the layered regions anyway.
+  meet. \texttt{wing-TE} and \texttt{wheel-plinth} carry surface level
+  (6 7), so the cell at the wall there is \SI{0.293}{mm} at its coarsest and
+  the near-wall spacing is comparable to the layered regions anyway.
+  \texttt{wing-endplate\_TE} is the weak one: level (5 5), so
+  \SI{0.586}{mm} cells with no layers --- but it is 212 faces on the
+  endplate trailing edge, away from the pressure-carrying surfaces.
 \item The number to judge the near-wall treatment by is $y^+$, not the layer
   count --- which means it cannot be judged yet. It is the first
   thing to check once the case is solved (section~\ref{sec:finish}).

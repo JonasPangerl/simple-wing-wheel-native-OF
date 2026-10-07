@@ -132,10 +132,11 @@ These are real and documented, not things to silently "fix":
 
 - The wing STL has **2 duplicate triangles** on the endplate outer edge, a
   defect in the geometry generator. `Allmesh` reports it and continues.
-- The wheel is tessellated at **1.53 mm** circumferentially (`n_circ = 180` in
-  `wheel_generator.py`) against a 0.293 mm target cell at L6, so the tread
-  shows facets. Raising `n_circ` is the fix, but it changes the geometry the
-  existing comparisons were made against.
+- Wheel tessellation is **900 circumferential segments**
+  (`wheel_circumferential_segments` in `params.yaml`), i.e. a 0.31 mm facet
+  against the 0.293 mm target cell at L6. It was 180 (1.53 mm, five times
+  coarser than the cell, a visibly wavy surface). Lowering it again brings
+  the facets back; raising it further buys nothing the cell size can use.
 - `snappyHexMesh` cannot do **per-STL-region distance refinement**. The way
   around it, used for the endplate shedding edge: `Allmesh` extracts that
   region into its own file with `surfaceSplitByPatch`, and
@@ -151,10 +152,11 @@ These are real and documented, not things to silently "fix":
   layers, and that is accepted.** snappyHexMesh is known for incomplete layer
   coverage at sharp edges and where two layered surfaces meet; reducing the
   request to 2 thin layers did not change it, because the limit is topology
-  and not thickness. Do not chase this. All three sit in L7 cells
-  (0.146 mm), so the near-wall spacing is comparable to the layered regions
-  anyway. Overall coverage is ~92 %. The number that matters is y⁺ in
-  `results.txt`.
+  and not thickness. Do not chase this. `wing-TE` and `wheel-plinth` are at
+  level (6 7), so the wall cell is 0.293 mm at worst and the near-wall
+  spacing is comparable to the layered regions anyway; `wing-endplate_TE` is
+  at (5 5) and is the weak one, but it is 212 faces. Overall coverage is
+  ~96 %. The number that matters is y⁺ in `results.txt`.
   Ordering note for the `layers` dict: `layerParameters` iterates the entries
   and overwrites as it goes, so the **last matching entry wins**.
 

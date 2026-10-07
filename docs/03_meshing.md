@@ -293,11 +293,17 @@ checking after any change to the boxes — it is the fastest way to see where
 the cells actually went:
 
 ```
-L0  0.11 M     L4  4.26 M
-L1  0.02 M     L5 11.74 M
-L2  0.52 M     L6  1.24 M
-L3  0.59 M     L7  2.38 M
+L0  0.11 M     L4  4.30 M
+L1  0.02 M     L5 11.58 M
+L2  0.52 M     L6  1.19 M
+L3  0.59 M     L7  0.003 M
 ```
+
+Total 18.32 M. L5 alone is 63 % of the mesh — it is the distance refinement
+around both bodies, and it is the first place to look if the cell count needs
+to come down. L7 is now almost empty: the only thing left at that level is
+feature escalation on `wing-TE` and `wheel-plinth`, because
+`L6-contact-patch` is a level-6 box (see below).
 
 ### Two lessons from getting this wrong
 
@@ -317,23 +323,23 @@ thing to read:
 
 ```
 patch                faces    target   achieved   thickness
-ground              225301         3       2.91      82.3 %
-wing-suction         31401         4       3.88        95 %
-wing-pressure        27763         4       3.87      96.1 %
-wing-TE                752         2          0         0 %
-wing-endplate_inner  14343         4       3.47      79.4 %
-wing-endplate_outer  16775         4       3.75      95.1 %
+ground              180851         3       2.92      92.3 %
+wing-suction         28951         4       3.88      95.1 %
+wing-pressure        27637         4       3.87      96.2 %
+wing-TE                746         2          0         0 %
+wing-endplate_inner  13234         4       3.45      79.1 %
+wing-endplate_outer  14498         4       3.71      94.3 %
 wing-endplate_top     3256         4       2.85        76 %
 wing-endplate_bottom  3256         4       2.85      76.4 %
-wing-endplate_LE      1392         4       3.87      97.4 %
+wing-endplate_LE      1356         4       3.87      97.3 %
 wing-endplate_TE       212         2          0         0 %
-wheel-tread          69130         4       3.57      63.4 %
-wheel-shoulders      37533         4       3.02      66.4 %
-wheel-sidewall       33144         4       3.99      99.9 %
-wheel-plinth          2739         2          0         0 %
+wheel-tread          38861         4       3.95      84.3 %
+wheel-shoulders      26056         4       3.88      89.9 %
+wheel-sidewall       33128         4       4.00       100 %
+wheel-plinth           902         2          0         0 %
 ```
 
-Overall coverage 92.4 %.
+Overall coverage 96.0 %.
 
 `wing-TE`, `wing-endplate_TE` and `wheel-plinth` are at zero. They were
 originally asked for 4 layers from 0.14 mm (0.87 mm total), which is more
