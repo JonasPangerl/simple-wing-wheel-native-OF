@@ -32,6 +32,19 @@ DEFAULT_WINDOW = 50
 # ---------------------------------------------------------------------------
 # OpenFOAM postProcessing .dat files
 # ---------------------------------------------------------------------------
+def _tok(x):
+    """float if the token is numeric, else the raw string.
+
+    solverInfo.dat mixes text and numbers in one row (solver names,
+    'true'/'false' convergence flags), so a row cannot be parsed as all
+    floats. Doing so silently discarded every line of the residual history.
+    """
+    try:
+        return float(x)
+    except ValueError:
+        return x
+
+
 def read_dat(path):
     """Read an OpenFOAM postProcessing .dat file.
 
@@ -53,13 +66,7 @@ def read_dat(path):
                 if candidate and candidate[0] == "Time":
                     names = candidate
                 continue
-            parts = line.split()
-            try:
-                rows.append([float(p) for p in parts])
-            except ValueError:
-                # A ragged or partially-written line, e.g. the run was killed
-                # mid-write. Skip it rather than failing the whole collection.
-                continue
+            rows.append([_tok(t) for t in line.split()])
 
     return names, rows
 
@@ -96,7 +103,8 @@ def column_stats(names, rows, column, window):
         return None
 
     idx = names.index(column)
-    values = [r[idx] for r in rows if len(r) > idx]
+    values = [r[idx] for r in rows
+              if len(r) > idx and isinstance(r[idx], float)]
     if not values:
         return None
 
@@ -161,11 +169,13 @@ def collect_residuals(case, window):
             continue
         field = name[: -len("_initial")]
         idx = names.index(name)
-        values = [r[idx] for r in rows if len(r) > idx]
+        values = [r[idx] for r in rows
+                  if len(r) > idx and isinstance(r[idx], float)]
         if values:
             out[field] = values[-1]
 
-    out["iterations"] = int(rows[-1][0]) if rows[-1] else None
+    if rows and isinstance(rows[-1][0], float):
+        out["iterations"] = int(rows[-1][0])
     return out
 
 

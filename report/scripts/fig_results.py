@@ -27,7 +27,7 @@ from pv_common import (new_view, look_at, save, hide_all, text_label,  # noqa: E
 from paraview.simple import *  # noqa: F401,F403,E402
 
 # Near-field box the slices and isosurfaces are clipped to, metres
-NEAR = dict(pos=(-0.20, 0.0, 0.0), length=(0.55, 0.20, 0.15))
+NEAR = dict(pos=(-0.20, 0.0, 0.0), length=(0.55, 0.165, 0.105))
 
 
 def patches_matching(reader, prefixes):
@@ -169,8 +169,11 @@ def main():
             d.Representation = "Surface"
             # Total pressure coefficient is ~1 in the freestream with this
             # definition, and drops in wakes and vortex cores.
+            # Viridis, not a diverging map: the freestream sits at ~1 and
+            # reads as light yellow, losses go dark. A diverging map puts
+            # the freestream at one saturated end and hides the structure.
             colour_by(d, v, "CpT", "CELLS", (0.0, 1.05),
-                      "Cool to Warm (Extended)", "CpT")
+                      "Viridis (matplotlib)", "CpT")
             if i < len(xs) - 1:
                 d.SetScalarBarVisibility(v, False)
         ground_plane(v, x=(-0.05, 0.16), y=(0.0, 0.18), opacity=0.18)

@@ -189,6 +189,16 @@ def main():
     add("totalMinutes", fmt(timing.get("total", 0) / 60.0, "{:.0f}")
         if "total" in timing else "n/a")
 
+    # endTime from the case parameters, so the report can say "N of M"
+    cp = os.path.join(case, "include", "caseParameters")
+    n_target = "n/a"
+    if os.path.isfile(cp):
+        m0 = re.search(r"^\s*nIterations\s+(\d+)\s*;", 
+                       open(cp, errors="replace").read(), re.M)
+        if m0:
+            n_target = m0.group(1)
+    add("nIterations", n_target)
+
     add("nIter", str(n_iter) if n_iter else "n/a")
     add("secPerIter", fmt(sec_per_iter, "{:.2f}"))
     add("converged", "yes" if solve.get("converged") else "no")

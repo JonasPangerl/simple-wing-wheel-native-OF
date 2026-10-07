@@ -129,10 +129,10 @@ def add_scalar_bar(view, lut, title, fmt="%.2f"):
     bar.ScalarBarThickness = 22
     bar.Orientation = "Horizontal"
     bar.WindowLocation = "Any Location"
-    bar.Position = [0.28, 0.025]
+    bar.Position = [0.27, 0.055]
     bar.TitleFontSize = 22
     bar.LabelFontSize = 18
-    bar.TextPosition = "Ticks left/bottom, annotations right/top"
+    bar.TitleJustification = "Centered"
     return bar
 
 

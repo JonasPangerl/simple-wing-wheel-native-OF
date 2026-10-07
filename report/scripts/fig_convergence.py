@@ -35,6 +35,19 @@ COLOURS = {
 AVG_WINDOW = 50   # must match collect_results.py
 
 
+def _tok(x):
+    """float if the token is numeric, else the raw string.
+
+    solverInfo.dat mixes text and numbers in one row (solver names,
+    'true'/'false' convergence flags), so a row cannot be parsed as all
+    floats. Doing so silently discarded every line of the residual history.
+    """
+    try:
+        return float(x)
+    except ValueError:
+        return x
+
+
 def read_dat(path):
     """Return (names, rows) for an OpenFOAM postProcessing .dat file."""
     names, rows = [], []
@@ -48,18 +61,20 @@ def read_dat(path):
                 if cand and cand[0] == "Time":
                     names = cand
                 continue
-            try:
-                rows.append([float(p) for p in line.split()])
-            except ValueError:
-                continue
+            rows.append([_tok(t) for t in line.split()])
     return names, rows
 
 
 def column(names, rows, key):
+    """Numeric values of one named column; non-numeric entries dropped."""
     if key not in names:
         return None
     i = names.index(key)
-    return [r[i] for r in rows if len(r) > i]
+    out = []
+    for r in rows:
+        if len(r) > i and isinstance(r[i], float):
+            out.append(r[i])
+    return out
 
 
 def latest(base, fname):

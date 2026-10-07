@@ -103,6 +103,25 @@ if [ "$DO_LATEX" -eq 1 ]; then
         exit 1
     fi
 
+    # Shrink the PDF. 28 figures at 1600 px come to ~10 MB, which is a lot
+    # to carry in a git repository for every rebuild; 150 dpi keeps the mesh
+    # close-ups fully legible at about a seventh of the size.
+    if command -v gs > /dev/null 2>&1; then
+        before=$(du -h report.pdf | cut -f1)
+        if gs -sDEVICE=pdfwrite -dCompatibilityLevel=1.5 \
+              -dPDFSETTINGS=/ebook -dNOPAUSE -dQUIET -dBATCH \
+              -dDetectDuplicateImages=true -dDownsampleColorImages=true \
+              -dColorImageResolution=150 \
+              -sOutputFile=report_small.pdf report.pdf 2>/dev/null \
+           && [ -s report_small.pdf ]; then
+            mv -f report_small.pdf report.pdf
+            printf '  compressed %s -> %s\n' "$before" "$(du -h report.pdf | cut -f1)"
+        else
+            rm -f report_small.pdf
+            echo "  note: gs compression failed, keeping the full-size PDF"
+        fi
+    fi
+
     pages=$(pdfinfo report.pdf 2>/dev/null | awk '/^Pages/{print $2}')
     printf '\n  report.pdf written (%s pages, %s)\n' \
         "${pages:-?}" "$(du -h report.pdf | cut -f1)"

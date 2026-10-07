@@ -99,6 +99,13 @@ def prune_case(case_dir: Path, dry_run: bool = False, force: bool = False) -> in
     vtk_dir = case_dir / "VTK"
     if vtk_dir.exists():
         to_remove.append(vtk_dir)
+
+    # Scaled STLs and extracted feature edges: ~27 MB per case, and Allmesh
+    # rebuilds them from the geometry output in seconds.
+    for sub in ("triSurface", "extendedFeatureEdgeMesh"):
+        d = case_dir / "constant" / sub
+        if d.exists():
+            to_remove.append(d)
     
     # Calculate size to remove
     remove_size = 0

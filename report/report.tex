@@ -71,6 +71,26 @@ wheel}\\[2mm]
 \thispagestyle{fancy}
 \vspace{-10mm}
 
+% ---------------------------------------------------------------------------
+\begin{center}
+\fcolorbox{warn}{warn!6}{\parbox{0.95\linewidth}{\small
+\textbf{\bad{State of this report.}}
+The setup, the mesh and the whole figure and reporting chain are complete and
+verified. \textbf{The solution is not.} This build stops at
+\textbf{\nIter\ SIMPLE iterations} of the \nIterations\ configured, so every
+flow quantity in it --- forces, $C_p$, $C_pT$, $y^+$, $Q$ --- is a
+\emph{partially converged} field and must not be quoted as a result. The
+residuals are still at $10^{-2}$ (section~7).
+
+Mesh-side numbers (cell counts, layer coverage, \texttt{checkMesh}, timings)
+are final and can be relied on.
+
+To finish it: run the solve to completion and rebuild, see
+section~\ref{sec:finish}.
+}}
+\end{center}
+\vspace{2mm}
+
 % ===========================================================================
 \section{Case at a glance}
 
@@ -420,19 +440,83 @@ the final iterations.}{convfz}
 % ===========================================================================
 \section{Results}\label{sec:results}
 
-\figOrNote{res_cp_wing}{0.92}{Pressure coefficient on the wing suction
-side.}{rescp}
+\paragraph{Colour ranges are fixed, not auto-scaled.} The raw fields contain
+isolated extremes far outside the physical range --- measured on this build,
+$C_p$ down to $-32$, $C_pT$ up to $100$ and $|U|$ up to \SI{100}{m/s} against
+a \SI{10}{m/s} freestream. Those are single cells, not regions: the velocity
+figure below shows nothing at the top of its scale. Auto-scaling to them
+would flatten every plot, so the ranges are the physically meaningful ones
+and anything outside saturates.
+
+\figOrNote{res_umag}{0.95}{$|U|$ on the wheel-centre plane. Acceleration over
+the wheel crown, the separated wheel wake, and the wing wake below. Nothing
+reaches the top of the scale, which is how you tell the extreme values are
+isolated cells rather than a region.}{resumag}
+
+\figOrNote{res_cp_wing}{0.92}{$C_p$ seen from below: wing suction side and
+the underside of the wheel.}{rescp}
+
+\figOrNote{res_cp_wing_top}{0.92}{$C_p$ seen from above: wing pressure side
+and the wheel stagnation region.}{rescptop}
 
 \figOrNote{res_cpt_slice}{0.95}{Total pressure coefficient on streamwise
-slices --- vortex cores and wake losses.}{rescpt}
-
-\figOrNote{res_yplus}{0.92}{$y^+$ on the wall patches. The layer stack
-targets $y^+\approx2.5$; the all-$y^+$ wall functions stay valid well beyond
-that, but values far above 30 mean the near-wall solution should not be
-trusted.}{resyplus}
+slices. $C_pT\approx1$ in the freestream; the dark regions are total-pressure
+loss, and the discrete cores downstream are the endplate and wheel
+vortices.}{rescpt}
 
 \figOrNote{res_q}{0.92}{Q-criterion isosurface, coloured by streamwise
 vorticity --- the endplate and wheel vortex systems.}{resq}
+
+\figOrNote{res_tau}{0.92}{Wall shear stress magnitude on the suction side.
+Dark bands are separation lines.}{restau}
+
+\figOrNote{res_yplus}{0.92}{$y^+$ on the wall patches.}{resyplus}
+
+\paragraph{$y^+$, the check that decides whether the wall treatment holds.}
+Mean values: wing \yplusWing, wheel \yplusWheel. Per-patch averages on this
+build sit between 2.3 and 4 on the wing and between 2.9 and 3.7 on the wheel
+tread, shoulders and sidewall --- the range the layer stack was sized for.
+Two outliers, both expected:
+\begin{itemize}
+\item \texttt{wheel-plinth} averages 8.7. It carries no prism layers, so the
+  first cell is a bulk cell.
+\item \texttt{ground} peaks at \yplusMax, in the contact-patch region where
+  the belt passes under the wheel. Local, and not where the forces come from.
+\end{itemize}
+
+% ===========================================================================
+\section{Finishing this report}\label{sec:finish}
+
+The solve in this build stopped at \nIter\ of \nIterations\ iterations. To
+produce the final version:
+
+\begin{verbatim}
+cd RANS_Simulations/S1.42_h0.13_AOA8_W0.63
+./Allsolve --continue          # resumes from the latest written time
+./Allpost --summary            # refreshes results.json
+
+cd ../../report
+./build.sh                     # regenerates every figure, rebuilds the PDF
+\end{verbatim}
+
+\begin{itemize}
+\item \texttt{--continue} resumes rather than restarting:
+  \texttt{startFrom} is \texttt{latestTime} in \texttt{controlDict}.
+\item The run stops by itself once \texttt{residualControl} is met, which is
+  usually well before the configured \nIterations.
+\item To stop it cleanly and keep the state resumable, set
+  \texttt{stopAt writeNow} in \texttt{system/controlDict} --- the solver
+  writes the current state and exits. \texttt{runTimeModifiable} is on, so it
+  picks the change up within one iteration. Killing the process instead
+  loses everything since the last write.
+\item \texttt{build.sh --no-figures} rebuilds only the text, which is quick.
+\end{itemize}
+
+\noindent
+Nothing in the report is typed by hand: all numbers come from the case's
+\texttt{results.json} and solver logs via
+\texttt{report/scripts/make\_tex\_data.py}, so a rebuild picks up the final
+solution automatically.
 
 % ===========================================================================
 \section{Assessment}

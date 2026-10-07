@@ -83,16 +83,21 @@ log "up to ${END_TIME:-?} iterations"
 runParallel simpleFoam
 
 # --- how did it end? --------------------------------------------------------
+# The iteration actually reached, from the log - NOT endTime. A run that is
+# stopped early (Ctrl-C, or 'stopAt writeNow' in controlDict) ends well short
+# of endTime, and reporting endTime there would overstate how much was
+# computed.
+ITERS=$(grep -oE '^Time = [0-9]+' log.simpleFoam | tail -1 \
+          | awk '{print $3}' || true)
+
 if grep -q 'solution converged' log.simpleFoam; then
-    ITERS=$(grep -oE '^Time = [0-9]+' log.simpleFoam | tail -1 \
-              | awk '{print $3}' || true)
     log "CONVERGED after ${ITERS:-?} iterations (residualControl satisfied)"
     echo "converged ${ITERS:-0}" > .solve_result
 else
-    log "reached endTime without meeting residualControl"
+    log "stopped at iteration ${ITERS:-?} without meeting residualControl"
     log "  -> check the residual trend before trusting the forces:"
     log "     ./Allpost --summary"
-    echo "endTime ${END_TIME}" > .solve_result
+    echo "stopped ${ITERS:-0}" > .solve_result
 fi
 
 # y+ is the check that decides whether the wall treatment was appropriate
